@@ -1,0 +1,4 @@
+n_rirs: 10
+ir_len: 96000
+n_modes: 100
+synthesis_type: "wgn"

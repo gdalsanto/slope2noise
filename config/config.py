@@ -19,7 +19,7 @@ class Config(BaseModel):
     # decay time values limits 
     t_vals_lims: List[float] =[0.1, 3.0]
     # amplitude values limits
-    a_vals_lims: List[float] = [0.1, 1.0]
+    a_vals_lims: List[float] = [0.1, 0.2]
     # number of common slopes
     n_slopes: int = 1
     # type of synthesis to use
