@@ -1,0 +1,5 @@
+n_rirs: 10
+ir_len: 96000
+n_modes: 100
+f_bands: [125, 250, 500, 1000, 2000, 4000, 8000]
+synthesis_type: "wgn"
