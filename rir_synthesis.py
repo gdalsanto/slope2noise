@@ -1,6 +1,5 @@
 import numpy as np 
 from utils import * 
-import matplotlib.pyplot as plt
 
 def decay_kernel(envelope_t, time, add_noise=True):
 
@@ -18,7 +17,7 @@ def decay_kernel(envelope_t, time, add_noise=True):
         return exponential
 
 
-def modal_synthesis(t_vals, a_vals, f_bands, n_modes, fs, ir_len, type='modal'):
+def rir_synthesis(t_vals, a_vals, f_bands, n_modes, fs, ir_len, type='modal'):
 
     # freuqencey bands are assumend to be log spaced
 
