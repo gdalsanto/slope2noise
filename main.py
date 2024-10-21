@@ -2,6 +2,7 @@ import argparse
 import yaml
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from rir_synthesis import rir_synthesis
 from utils import schroeder_backward_int, save_audio
 from pathlib import Path
@@ -24,7 +25,7 @@ def main(config_dict: Config):
     a_vals = np.random.uniform(config_dict.a_vals_lims[0], 
                                config_dict.a_vals_lims[1], 
                                (config_dict.n_rirs, config_dict.n_slopes, n_bands))
-    modal_synth_result, rirs = rir_synthesis(t_vals,
+    rirs_per_slope, rirs = rir_synthesis(t_vals,
                                                a_vals,
                                                config_dict.f_bands,
                                                config_dict.n_modes,
@@ -32,6 +33,12 @@ def main(config_dict: Config):
                                                config_dict.ir_len,
                                                type=config_dict.synthesis_type)
     # edc, norm_vals = schroeder_backward_int(rirs)
+    edf = np.flipud(np.cumsum(np.flipud(rirs[0,:] ** 2), axis=-1))
+    time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs, config_dict.ir_len)
+    plt.plot(time, 10*np.log10(edf))
+    plt.show()
+    plt.savefig("edf.png")
+
 
     # save audio files of rirs (only first channel)
     Path(config_dict.output_dir).mkdir(parents=True, exist_ok=True)
@@ -45,14 +52,9 @@ def main(config_dict: Config):
     for i in range(10):
         edc_param, norm_vals = BDA.estimate_parameters(rirs[i, :])
         # BDA takes the EDC parameters estimates for each band  
-        T, A, N = np.mean(edc_param[0]), np.mean(edc_param[1]/norm_vals), np.mean(edc_param[2])
+        T, A, N = np.mean(edc_param[0]), np.mean(edc_param[1]), np.mean(edc_param[2])
         print(f"Estimated T: {T}, A: {A} - Reference T: {t_vals[i, 0, 0]}, A: {a_vals[i, 0, 0]}")
 
-    # Set up decay model for reference 
-    # time_axis = np.linspace(0, (L - 1) / fs, L)
-    # edf_model = decay_kernel(schroeder_T, time_axis)
-    # edf_model = np.delete(edf_model, -1, axis=1)  # throw away noise term
-    # edf_model = np.dot(edf_model, schroeder_A)
 
 
 if __name__ == "__main__":
