@@ -36,7 +36,7 @@ def schroeder_backward_int(rir):
     out = np.flip(out, axis=-1)
 
     # Normalize to 1
-    norm_vals = np.max(out, dim=-1, keepdim=True)  # per channel
+    norm_vals = np.max(out, axis=-1, keepdims=True)  # per channel
     out = out / norm_vals
 
     return out, norm_vals
@@ -110,11 +110,12 @@ def calculate_amplitudes_least_squares(t_vals: NDArray, fs: float,
         for k in range(n_bands):
             cur_rir = net_rirs[i, :, k]
             # psi_k(t)
-            cur_edc = schroeder_backward_int(cur_rirs).reshape(ir_len, 1)
+            cur_edc, _ = schroeder_backward_int(cur_rir)
+            cur_edc = cur_edc.reshape(ir_len, 1)
             # psi_k(t) - psi_k(L)
             cur_envelope = envelopes[i, :, :, k] - envelopes[i, -1, :, k]
             assert cur_envelope.shape == (ir_len, n_slopes)
-            cur_amps = np.linalg.pinv(cur_envelope) @ cur_rir
+            cur_amps = np.linalg.pinv(cur_envelope) @ cur_edc
             est_amps[i, :, k] = cur_amps
 
     return est_amps

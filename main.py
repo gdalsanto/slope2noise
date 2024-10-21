@@ -49,7 +49,7 @@ def main(config_dict: Config):
         T, A, N = np.mean(edc_param[0]), np.mean(
             edc_param[1] / norm_vals), np.mean(edc_param[2])
         # amplitudes with least squares
-        A_ls = calculate_amplitude_least_squares(
+        A_ls = calculate_amplitudes_least_squares(
             T.reshape(1, 1, config_dict.n_slopes, 1), config_dict.fs,
             modal_synth_result[i, ...])
         print(

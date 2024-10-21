@@ -175,14 +175,17 @@ def rir_synthesis(t_vals: NDArray,
                     gaussian_noise[:, :, i_slope, i_band] = np.einsum(
                         'nt, nt -> nt', filtered_noise[:, :, i_slope, i_band],
                         envelopes[..., i_band])
-                    envelope_a[:, :, i_slope, i_band] = np.expand_dims(np.sqrt(
-                        a_vals[:, i_slope, i_band]),
-                                                                       axis=-1)
+                    envelope_a[:, :, i_slope, i_band] = np.expand_dims(
+                        np.sqrt(a_vals[:, i_slope, i_band]),
+                        axis=-1) * np.sqrt(
+                            (1 - envelopes[..., i_band]) / band_energy[i_band])
             else:
                 gaussian_noise[:, :, i_slope, :] = np.einsum(
                     'ntb, ntb -> ntb', random_sequence[:, :, i_slope, :],
                     envelopes)
-                envelope_a[:, :, i_slope, 0] = np.sqrt(a_vals[:, i_slope, :])
+                envelope_a[:, :, i_slope,
+                           0] = np.sqrt(a_vals[:, i_slope, :]) * np.sqrt(
+                               (1 - envelopes[:, :, 0]))
             synthesis_rirs = gaussian_noise
 
     # Apply amplitude envelopes
