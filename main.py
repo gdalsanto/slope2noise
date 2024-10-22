@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from config.config import Config
-from coupled_rooms_dataset import CommonSlopesRIR, sample_room_interior
-from rir_synthesis import rir_synthesis
+from slope2noise.coupled_rooms_dataset import CommonSlopesRIR, sample_room_interior
+from slope2noise.rir_synthesis import rir_synthesis
 
 def gen_dataset(config_dict: Config):
     

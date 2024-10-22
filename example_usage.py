@@ -3,12 +3,12 @@ import yaml
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from rir_synthesis import rir_synthesis
-from utils import schroeder_backward_int, save_audio, calculate_amplitudes_least_squares
 from pathlib import Path
-from config.config import Config
 import DecayFitNet.python.toolbox.BayesianDecayAnalysis as bda
 
+from config.config import Config
+from slope2noise.rir_synthesis import rir_synthesis
+from slope2noise.utils import schroeder_backward_int, save_audio, calculate_amplitudes_least_squares
 
 def main(config_dict: Config):
 

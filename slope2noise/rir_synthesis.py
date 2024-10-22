@@ -1,7 +1,8 @@
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from typing import Union, Optional, Tuple
-from utils import *
+
+from .utils import *
 
 
 def rir_synthesis(t_vals: NDArray,
