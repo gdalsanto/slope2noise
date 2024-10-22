@@ -43,7 +43,7 @@ def gen_dataset(config_dict: Config):
                                 config_dict.ir_len, 
                                 type=config_dict.synthesis_type)
         # create instance of CommonSlopes dataclass
-        RIRs = CommonSlopes(source_locs=source_locs,
+        RIRs = CommonSlopesRIR(source_locs=source_locs,
                             receiver_locs=receiver_locs,
                             n_slopes=config_dict.n_slopes,
                             a_vals=a_vals,
