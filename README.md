@@ -10,5 +10,6 @@ packages used
 - torch 
 - h5py
 - soundfile
+- loguru
 
 Requires DecayFitNet submodule to run Bayesian Decay Analysis so when cloning please add the `--recurse-submodules` flag 
