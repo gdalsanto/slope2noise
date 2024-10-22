@@ -17,7 +17,7 @@ def decay_kernel(decay, time, add_noise=True):
         return exponential
 
 
-def rir_synthesis(t_vals, a_vals, f_bands, n_modes, fs, ir_len, type='modal'):
+def rir_synthesis(t_vals, a_vals, f_bands, fs, ir_len, type='modal', n_modes=None):
     # freuqencey bands are assumend to be log spaced
 
     # assert input dimensions
