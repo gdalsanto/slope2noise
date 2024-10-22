@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from config.config import Config
-from slope2noise.coupled_rooms_dataset import CommonSlopesRIR, sample_room_interior
+from slope2noise.rooms import RoomGeometry, CommonSlopesRIR
 from slope2noise.rir_synthesis import rir_synthesis
 
 def gen_dataset(config_dict: Config):
@@ -19,14 +19,23 @@ def gen_dataset(config_dict: Config):
     if config_dict.n_rirs % config_dict.batch_size != 0:
         n_batch += 1
     
-    room_dim_1 = [10, 7.5, 3.5] # x, y, z 
-    # room_dim_2 = [15, 4.5, 3.5] 
+    num_rooms = 2
+    room_dim_1 = [4, 8, 2] # x, y, z 
+    room_dim_2 = [6, 2, 2] 
+    start_coordinate_room_1 = [0, 0, 0]
+    start_coordinate_room_2 = [4, 2, 0]
+    t_vals = [0.7, 1.5]
 
+    room = RoomGeometry(config_dict.fs,
+                        num_rooms,
+                        np.vstack((room_dim_1, room_dim_2)),
+                        np.vstack((start_coordinate_room_1, start_coordinate_room_2)))  
+                 
     for i_batch in range(n_batch):
         # sample the source location within the room 
-        source_locs = sample_room_interior(room_dim_1, n_locs=config_dict.batch_size)
+        source_locs = room.sample_interior_points(n_points=config_dict.batch_size)
         # sample the receiver location within the room 
-        receiver_locs = sample_room_interior(room_dim_1, n_locs=config_dict.batch_size)
+        receiver_locs = room.sample_interior_points(n_points=config_dict.batch_size)
         # get the amplitudes of the slopes 
         a_vals = np.random.uniform(10**(-3/10), 
                                    10**(0/10),
