@@ -23,8 +23,7 @@ def rir_synthesis(t_vals: NDArray,
     Returns:
         NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_slopes x n_bands, and summer RIRs of size n_rir x ir_len
     """
-
-    # freuqencey bands are assumend to be log spaced
+    # frequency bands are assumend to be log spaced
 
     # assert input dimensions
     assert len(t_vals.shape) >= 1 and len(
@@ -54,24 +53,28 @@ def rir_synthesis(t_vals: NDArray,
     else:
         n_bands = 1  # broadband
 
-    n_rirs = t_vals.shape[0]
-    n_slopes = t_vals.shape[1]
-
-    # time arrray
-    time = np.linspace(0, (ir_len - 1) / fs, ir_len)
+    n_rirs = t_vals.shape[0]  # number of rir to generate
+    n_slopes = t_vals.shape[1]  # number of common slopes
+    time = np.linspace(0, (ir_len - 1) / fs, ir_len)  # time arrray
 
     # initialize output arrays
     gaussian_noise = np.zeros(
         (n_rirs, ir_len, n_slopes, n_bands))  # without envelopes
-    envelope_a = np.zeros((n_rirs, ir_len, n_slopes, n_bands))
+    envelope_a = np.zeros_like(gaussian_noise)
+    synthesis_rirs = np.zeros_like(gaussian_noise)
+    filtered_noise = np.zeros_like(gaussian_noise)
 
     for i_slope in range(n_slopes):
 
         # envelope is in linear scale, not quadratic, therefore decay rates halve, and T values double
-        envelope_t = 2 * np.array(t_vals[:, i_slope, ...])
+        t_vals_evelope = 2 * np.array(t_vals[:, i_slope, ...])
 
-        # generate decay envelopes from t_vals
-        envelopes = decay_kernel(envelope_t, time, add_noise=False)
+        # generate decay envelope
+        envelopes = decay_kernel(t_vals_evelope,
+                                 time,
+                                 fs,
+                                 normalise_envelope=True,
+                                 add_noise=False)
 
         if n_bands > 1 and type == 'modal':
             # duplicate first and last envelope for residual band
@@ -86,12 +89,10 @@ def rir_synthesis(t_vals: NDArray,
             ],
                                     axis=-1)
 
-        # convert envelope to dB
-        envelopes_db = 10 * np.log10(envelopes)
-
-        # output arrays
-        synthesis_rirs = np.zeros((n_rirs, ir_len, n_slopes, n_bands))
         if type == 'modal':
+
+            # convert envelope to dB
+            envelopes_db = 10 * np.log10(envelopes)
 
             # random mode phase
             mode_phase = 2 * np.pi * np.random.rand(n_rirs, n_modes)
@@ -147,18 +148,11 @@ def rir_synthesis(t_vals: NDArray,
                            i_band[i_mode]] = np.expand_dims(
                                np.sqrt(a_vals[:, i_slope, i_band[i_mode]]),
                                axis=-1) * np.sqrt((1 - interp_envelope))
-            # Scale to ensure unit RMS for each band
-            scaling_factor = 1.0 / np.sqrt(
-                np.mean(np.square(gaussian_noise), axis=1))
-            synthesis_rirs = gaussian_noise * np.expand_dims(scaling_factor,
-                                                             axis=1)
 
         elif type == 'wgn':
 
             # generate random sequence of Gaussian noise
-            random_sequence = np.random.randn(n_rirs, ir_len, n_slopes, 1)
-
-            filtered_noise = np.zeros((n_rirs, ir_len, n_slopes, n_bands))
+            random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
             if n_bands > 1:
                 # get energy of the filter bank
@@ -175,19 +169,15 @@ def rir_synthesis(t_vals: NDArray,
                     gaussian_noise[:, :, i_slope, i_band] = np.einsum(
                         'nt, nt -> nt', filtered_noise[:, :, i_slope, i_band],
                         envelopes[..., i_band])
-                    envelope_a[:, :, i_slope, i_band] = np.expand_dims(
-                        np.sqrt(a_vals[:, i_slope, i_band]),
-                        axis=-1) * np.sqrt(
-                            (1 - envelopes[..., i_band]) / band_energy[i_band])
+                    envelope_a[:, :, i_slope,
+                               i_band] = np.expand_dims(
+                                   np.sqrt(a_vals[:, i_slope, i_band]),
+                                   axis=-1) / band_energy[i_band]
             else:
-                gaussian_noise[:, :, i_slope, :] = np.einsum(
-                    'ntb, ntb -> ntb', random_sequence[:, :, i_slope, :],
-                    envelopes)
-                envelope_a[:, :, i_slope,
-                           0] = np.sqrt(a_vals[:, i_slope, :]) * np.sqrt(
-                               (1 - envelopes[:, :, 0]))
-            synthesis_rirs = gaussian_noise
 
-    # Apply amplitude envelopes
-    synthesis_rirs *= envelope_a
+                # shape the random sequence and apply the envelope
+                synthesis_rirs[:, :, i_slope, :] = np.einsum(
+                    'ntb, nb -> ntb', random_sequence * envelopes,
+                    np.sqrt(a_vals[:, i_slope, :]))
+
     return synthesis_rirs, synthesis_rirs.sum(axis=-1).sum(axis=-1)
