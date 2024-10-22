@@ -1,75 +1,59 @@
+
 import argparse
 import yaml
-import os
+import pickle 
+import os 
+
 import numpy as np
 import matplotlib.pyplot as plt
-from rir_synthesis import rir_synthesis
-from utils import schroeder_backward_int, save_audio, calculate_amplitudes_least_squares
 from pathlib import Path
+
 from config.config import Config
-import DecayFitNet.python.toolbox.BayesianDecayAnalysis as bda
+from coupled_rooms_dataset import CommonSlopesRIR, sample_room_interior
+from rir_synthesis import rir_synthesis
 
+def gen_dataset(config_dict: Config):
+    
+    # get number of batches 
+    n_batch = config_dict.n_rirs // config_dict.batch_size 
+    if config_dict.n_rirs % config_dict.batch_size != 0:
+        n_batch += 1
+    
+    room_dim_1 = [10, 7.5, 3.5] # x, y, z 
+    # room_dim_2 = [15, 4.5, 3.5] 
 
-def main(config_dict: Config):
-
-    # detect whether the decay time values are breadband of frequency dependent
-    if config_dict.f_bands is None:
-        n_bands = 1
-    else:
-        n_bands = len(config_dict.f_bands)
-
-    # sample energy decay parameters using uniform distribution
-    # TODO: ideally t_vals, if frequency dependent, should follow a more realistic distribution
-    t_vals = np.random.uniform(
-        config_dict.t_vals_lims[0], config_dict.t_vals_lims[1],
-        (config_dict.n_rirs, config_dict.n_slopes, n_bands))
-    a_vals = np.random.uniform(
-        config_dict.a_vals_lims[0], config_dict.a_vals_lims[1],
-        (config_dict.n_rirs, config_dict.n_slopes, n_bands))
-    rirs_per_slope, rirs = rir_synthesis(
-        t_vals,
-        a_vals,
-        config_dict.f_bands,
-        config_dict.fs,
-        config_dict.ir_len,
-        type=config_dict.synthesis_type,
-        n_modes=config_dict.n_modes,
-    )
-
-    edf = np.flipud(np.cumsum(np.flipud(rirs[0, :]**2), axis=-1))
-    time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
-                       config_dict.ir_len)
-    plt.plot(time, 10 * np.log10(edf))
-    plt.plot(0, 10 * np.log10(a_vals[0]), 'kx')
-    plt.show()
-    plt.savefig("edf.png")
-
-    # save audio files of rirs (only first channel)
-    Path(config_dict.output_dir).mkdir(parents=True, exist_ok=True)
-    save_audio(os.path.join(config_dict.output_dir, "rir.wav"), rirs[0, :],
-               config_dict.fs)
-    # test with Bayesian Decay Analysis
-    BDA = bda.BayesianDecayAnalysis(config_dict.n_slopes,
-                                    config_dict.fs,
-                                    filter_frequencies=config_dict.f_bands)
-
-    # get amplitudes with least squares
-    A_ls = calculate_amplitudes_least_squares(t_vals,
-                                              config_dict.fs,
-                                              rirs[..., np.newaxis],
-                                              leave_out_ms=50.0)
-
-    # go through the parameters of the first 10 rirs
-    for i in range(10):
-        edc_param, norm_vals = BDA.estimate_parameters(rirs[i, :])
-        # BDA takes the EDC parameters estimates for each band
-        T, A, N = np.mean(edc_param[0]), np.mean(edc_param[1]), np.mean(
-            edc_param[2])
-        # amplitudes with least squares
-
-        print(
-            f"Estimated T: {T:.3f}, A: {A:.3f}, A_LS: {np.squeeze(A_ls[i]):.3f}  - Reference T: {t_vals[i, 0, 0]:.3f}, A: {a_vals[i, 0, 0]:.3f}"
-        )
+    for i_batch in range(n_batch):
+        # sample the source location within the room 
+        source_locs = sample_room_interior(room_dim_1, n_locs=config_dict.batch_size)
+        # sample the receiver location within the room 
+        receiver_locs = sample_room_interior(room_dim_1, n_locs=config_dict.batch_size)
+        # get the amplitudes of the slopes 
+        a_vals = np.random.uniform(10**(-3/10), 
+                                   10**(0/10),
+                                   (config_dict.batch_size, config_dict.n_slopes))
+        # get the decay times of the slopes
+        t_vals = np.random.uniform(0.1, 
+                                   3.5,
+                                   (config_dict.batch_size, config_dict.n_slopes))
+        # generate the shaped wgn give the slopes and the decay times
+        _, rirs = rir_synthesis(t_vals, 
+                                a_vals, 
+                                config_dict.f_bands, 
+                                config_dict.fs, 
+                                config_dict.ir_len, 
+                                type=config_dict.synthesis_type)
+        # create instance of CommonSlopes dataclass
+        RIRs = CommonSlopesRIR(source_locs=source_locs,
+                            receiver_locs=receiver_locs,
+                            n_slopes=config_dict.n_slopes,
+                            a_vals=a_vals,
+                            t_vals=t_vals,
+                            rir=rirs, 
+                            batch_id=i_batch)
+        # save it to a pkl file 
+        with open(os.path.join(config_dict.output_dir, f"bb_wgn_{i_batch:04}.pkl"), "wb") as f:
+            pickle.dump(RIRs, f)
+        
 
 
 if __name__ == "__main__":
@@ -80,7 +64,7 @@ if __name__ == "__main__":
         "-c",
         "--config_file",
         default=None,
-        help="Configuration file (YAML) containing diff GFDN \
+        help="Configuration file (YAML) \
         (if none provided the default parameters are loaded).",
     )
 
@@ -97,4 +81,7 @@ if __name__ == "__main__":
     else:
         config_dict = Config()
 
-    main(config_dict)
+    # make output directory if it does not exist
+    Path(config_dict.output_dir).mkdir(parents=True, exist_ok=True)
+
+    gen_dataset(config_dict)
