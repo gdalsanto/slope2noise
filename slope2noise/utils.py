@@ -27,6 +27,30 @@ def discard_last_n_percent(edc, n_percent: float):
     return out
 
 
+def db(x: ArrayLike,
+       is_squared: bool = False,
+       min_value: float = -200) -> ArrayLike:
+    """Convert values to decibels.
+
+    Args:
+        x (ArrayLike):
+            value(s) to be converted to dB.
+        is_squared (bool):
+            Indicates whether `x` represents some power-like quantity (True) or some root-power-like quantity (False).
+            Defaults to False, i.e. `x` is a root-power-like auqntity (e.g. Voltage, pressure, ...).
+        min_value (float): cap the decibels to this value, cannot be lower
+
+    Returns:
+        An array with the converted values, in dB.
+    """
+    factor = 10.0 if is_squared else 20.0
+
+    x = np.abs(x)
+    y = factor * np.log10(x + np.finfo(np.float32).eps)
+
+    return y.clip(min=min_value)
+
+
 def ms_to_samps(ms: Union[float, ArrayLike],
                 fs: float) -> Union[int, ArrayLike]:
     """

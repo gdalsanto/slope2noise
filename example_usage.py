@@ -10,6 +10,7 @@ from config.config import Config
 from slope2noise.rir_synthesis import rir_synthesis
 from slope2noise.utils import schroeder_backward_int, save_audio, calculate_amplitudes_least_squares
 
+
 def main(config_dict: Config):
 
     # detect whether the decay time values are breadband of frequency dependent
@@ -23,9 +24,11 @@ def main(config_dict: Config):
     t_vals = np.random.uniform(
         config_dict.t_vals_lims[0], config_dict.t_vals_lims[1],
         (config_dict.n_rirs, config_dict.n_slopes, n_bands))
+
     a_vals = np.random.uniform(
         config_dict.a_vals_lims[0], config_dict.a_vals_lims[1],
         (config_dict.n_rirs, config_dict.n_slopes, n_bands))
+
     rirs_per_slope, rirs = rir_synthesis(
         t_vals,
         a_vals,
