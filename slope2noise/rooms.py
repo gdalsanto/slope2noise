@@ -147,12 +147,35 @@ class RoomGeometry():
         return np.stack((random_x, random_y, random_z), axis=-1)
 
     @staticmethod
-    def get_euclidean_distance(point1: NDArray, point2: NDArray, ax: int):
+    def get_euclidean_distance(point1: NDArray, point2: NDArray,
+                               ax: int) -> ArrayLike:
         """Get the euclidean distance between a set of points"""
         return np.sqrt(np.sum((point1 - point2)**2, axis=ax))
 
     @staticmethod
-    def is_point_in_room(corners: List, point: ArrayLike):
+    def point_to_room_distance(P: ArrayLike, room_bounds: List) -> float:
+        """
+        Get the distance from a point to a room edge, if the point
+        is inside the room, the distance is 1e-3 to avoid overflow. Works only in 2D for now.
+        Args:
+            P (ArrayLike): 2D point
+            room_bounds (List): [min_x, max_x, min_y, max_y] corresponding to 2D room bounds
+        """
+        Px, Py = P
+        x_min, x_max, y_min, y_max = room_bounds
+
+        # Distance in the x direction
+        dx = max(x_min - Px, 0, Px - x_max)
+
+        # Distance in the y direction
+        dy = max(y_min - Py, 0, Py - y_max)
+
+        # Overall distance (Euclidean distance)
+        dist = np.sqrt(dx**2 + dy**2)
+        return 1e-3 if dist <= 1e-3 else dist
+
+    @staticmethod
+    def is_point_in_room(corners: List, point: ArrayLike) -> bool:
         """
         Check if a point is inside a quadrilateral.
 
@@ -208,7 +231,7 @@ class RoomGeometry():
         rec_pos_2D = np.stack((rec_pos[:, 0], rec_pos[:, 1]), axis=0)
         amplitudes = np.zeros((self.num_rooms, num_rec))
 
-        dist_from_midpoint = np.zeros((self.num_rooms, num_rec))
+        dist_from_room = np.zeros((self.num_rooms, num_rec))
         dist_from_source = RoomGeometry.get_euclidean_distance(np.repeat(
             source_pos[np.newaxis, :], num_rec, axis=0),
                                                                rec_pos,
@@ -222,16 +245,14 @@ class RoomGeometry():
                                               rec_pos_2D[:, i])
                 for i in range(num_rec)
             ])
-            # distance of the receivers from midpoint
-            dist_from_midpoint[k, :] = RoomGeometry.get_euclidean_distance(
-                np.repeat(self.room_midpoint_2D[k][:, np.newaxis],
-                          num_rec,
-                          axis=1),
-                rec_pos_2D,
-                ax=0)
+            # distance of the receivers from the room
+            dist_from_room[k,:] = np.array([RoomGeometry.point_to_room_distance(rec_pos_2D[:, i], \
+                                                               [self.room_start_coord[k][0], self.room_start_coord[k][0] + self.room_dims[k][0],
+                                                                self.room_start_coord[k][1], self.room_start_coord[k][1] + self.room_dims[k][1]]) \
+                                        for i in range(num_rec)])
             # amplitudes depend on 1/r
             amplitudes[k, :] = 1.0 / (
-                np.sqrt(dist_from_midpoint[k, :] * dist_from_source) + 1e-12)
+                np.sqrt(dist_from_room[k, :] * dist_from_source) + 1e-12)
 
         # scale the amplitudes by the mean of the distributions
         for j in range(num_rec):
