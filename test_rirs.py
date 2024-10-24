@@ -32,14 +32,21 @@ def main(config_dict: Config):
         rirs[batch_idx_slice, :] = rir_data.rir
 
     # plot RIR EDF
-    for k in range(10):
+    num_rirs_to_plot = 10
+    rir_idx = np.random.randint(0, n_rirs, size=num_rirs_to_plot)
+
+    for k in range(num_rirs_to_plot):
         plt.figure()
-        edf = np.flipud(np.cumsum(np.flipud(rirs[k, :]**2), axis=-1))
+        edf = np.flipud(np.cumsum(np.flipud(rirs[rir_idx[k], :]**2), axis=-1))
         time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
                            config_dict.ir_len)
-        plt.plot(time, db(rirs[k, :]))
+        plt.plot(time, db(rirs[rir_idx[k], :]))
         plt.plot(time, db(edf, is_squared=True))
-        plt.plot(np.zeros(n_slopes), db(a_vals[k, :], is_squared=True), 'kx')
+        plt.plot(np.zeros(n_slopes), db(a_vals[rir_idx[k], :],
+                                        is_squared=True), 'kx')
+        plt.title(
+            f'RIR at position {receiver_locs[rir_idx[k], 0]:.2f}, {receiver_locs[rir_idx[k], 1]:.2f}, {receiver_locs[rir_idx[k], 2]:.2f} m'
+        )
         plt.show()
 
     # plot amplitudes as a function of receiver and geometry
