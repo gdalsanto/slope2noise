@@ -4,6 +4,7 @@ n_slopes: 2
 ir_len: 96000
 synthesis_type: "wgn"
 t_vals: [0.5, 1.7]
+delay_range_ms: [5.0, 10.0]
 output_dir: "../../resources/synthetic_dataset/"
 room_geom_config:
   num_rooms: 2
