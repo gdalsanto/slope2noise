@@ -32,13 +32,15 @@ def main(config_dict: Config):
         rirs[batch_idx_slice, :] = rir_data.rir
 
     # plot RIR EDF
-    edf = np.flipud(np.cumsum(np.flipud(rirs[0, :]**2), axis=-1))
-    time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
-                       config_dict.ir_len)
-    plt.plot(time, db(rirs[0, :]))
-    plt.plot(time, db(edf, is_squared=True))
-    plt.plot(np.zeros(n_slopes), db(a_vals[0, :], is_squared=True), 'kx')
-    plt.show()
+    for k in range(10):
+        plt.figure()
+        edf = np.flipud(np.cumsum(np.flipud(rirs[k, :]**2), axis=-1))
+        time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
+                           config_dict.ir_len)
+        plt.plot(time, db(rirs[k, :]))
+        plt.plot(time, db(edf, is_squared=True))
+        plt.plot(np.zeros(n_slopes), db(a_vals[k, :], is_squared=True), 'kx')
+        plt.show()
 
     # plot amplitudes as a function of receiver and geometry
     geom_config = config_dict.room_geom_config

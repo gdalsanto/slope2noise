@@ -112,12 +112,15 @@ def gen_dataset(config_dict: Config):
                                 config_dict.ir_len,
                                 type=config_dict.synthesis_type)
         # create instance of CommonSlopes dataclass
-        RIRs = CommonSlopesRIR(source_locs=source_loc,
+        RIRs = CommonSlopesRIR(room_dims=room_dims,
+                               room_start_coords=start_coordinates,
+                               source_locs=source_loc,
                                receiver_locs=receiver_locs,
                                n_slopes=config_dict.n_slopes,
                                a_vals=a_vals,
                                t_vals=t_vals,
                                rir=rirs,
+                               sample_rate=config_dict.fs,
                                batch_id=i_batch)
         # save it to a pkl file
         with open(

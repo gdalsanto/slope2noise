@@ -3,7 +3,7 @@ from numpy.typing import NDArray, ArrayLike
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from .utils import db
 
@@ -356,10 +356,13 @@ class CommonSlopesRIR():
     ''' 
     dataclass for the synthesized RIRs using shaped wgn and common slope parameters
     '''
-    source_locs: tuple
-    receiver_locs: tuple
+    room_dims: List
+    room_start_coords: List
+    source_locs: ArrayLike
+    receiver_locs: NDArray
     n_slopes: int
-    a_vals: np.ndarray
-    t_vals: np.ndarray
-    rir: np.ndarray
+    a_vals: NDArray
+    t_vals: NDArray
+    rir: NDArray
+    sample_rate: float
     batch_id: Optional[int] = None
