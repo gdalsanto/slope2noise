@@ -130,20 +130,29 @@ class RoomGeometry():
         """
         if i_room is None:
             # sample a random room index
-            i_room = np.random.randint(0, self.num_rooms)
+            i_room = np.random.randint(0, self.num_rooms, size=n_points)
         # Randomly sample a point inside each room's dimensions
-        random_x = np.random.uniform(
-            self.room_start_coord[i_room][0] + lim,
-            self.room_start_coord[i_room][0] + self.room_dims[i_room][0] - lim,
-            (n_points, ))
-        random_y = np.random.uniform(
-            self.room_start_coord[i_room][1] + lim,
-            self.room_start_coord[i_room][1] + self.room_dims[i_room][1] - lim,
-            (n_points, ))
-        random_z = np.random.uniform(
-            self.room_start_coord[i_room][2] + lim,
-            self.room_start_coord[i_room][2] + self.room_dims[i_room][2] - lim,
-            (n_points, ))
+        random_x = np.squeeze(
+            np.array([
+                np.random.uniform(self.room_start_coord[i_room[k]][0] + lim,
+                                  self.room_start_coord[i_room[k]][0] +
+                                  self.room_dims[i_room[k]][0] - lim,
+                                  size=1) for k in range(n_points)
+            ]))
+        random_y = np.squeeze(
+            np.array([
+                np.random.uniform(self.room_start_coord[i_room[k]][1] + lim,
+                                  self.room_start_coord[i_room[k]][1] +
+                                  self.room_dims[i_room[k]][1] - lim,
+                                  size=1) for k in range(n_points)
+            ]))
+        random_z = np.squeeze(
+            np.array([
+                np.random.uniform(self.room_start_coord[i_room[k]][2] + lim,
+                                  self.room_start_coord[i_room[k]][2] +
+                                  self.room_dims[i_room[k]][2] - lim,
+                                  size=1) for k in range(n_points)
+            ]))
         return np.stack((random_x, random_y, random_z), axis=-1)
 
     @staticmethod

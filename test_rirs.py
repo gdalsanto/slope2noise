@@ -20,7 +20,8 @@ def main(config_dict: Config):
     a_vals = np.zeros((n_rirs, n_slopes))
     rirs = np.zeros((n_rirs, config_dict.ir_len))
     for batch_id in range(num_batches):
-        data_path = Path(f'output/bb_wgn_{batch_id:04}.pkl').resolve()
+        data_path = Path(
+            f'{config_dict.output_dir}/bb_wgn_{batch_id:04}.pkl').resolve()
         batch_idx_slice = np.arange(batch_id * batch_size,
                                     (batch_id + 1) * batch_size)
 
