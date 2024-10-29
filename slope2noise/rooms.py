@@ -288,18 +288,22 @@ class RoomGeometry():
         x_rec = rec_pos[:, 0]
         y_rec = rec_pos[:, 1]
 
+        # set axis limits
+        boundaries_list = [[
+            a + b for a, b in zip(sublist1, sublist2)
+        ] for sublist1, sublist2 in zip(self.room_dims, self.room_start_coord)]
+
+        x_lim = max(lst[0] for lst in boundaries_list)
+        y_lim = max(lst[1] for lst in boundaries_list)
+
         fig, ax = plt.subplots(self.num_rooms, 1, figsize=(6, 8))
         fig.tight_layout()
 
         if not scatter_plot:
             # Create a grid for the surface
             num_samps = 1000
-            x_lin = np.linspace(
-                0, self.room_dims[-1][0] + self.room_start_coord[-1][0],
-                num_samps)
-            y_lin = np.linspace(
-                0, self.room_dims[-1][1] + self.room_start_coord[-1][1],
-                num_samps)
+            x_lin = np.linspace(0, x_lim, num_samps)
+            y_lin = np.linspace(0, y_lim, num_samps)
             x_mesh, y_mesh = np.meshgrid(x_lin, y_lin)
 
             # Create a mask for values within the limits (so that outside the boundaries the amps are zero)
@@ -320,12 +324,8 @@ class RoomGeometry():
                                    y_rec,
                                    c=db(amps[i, :], is_squared=True))
                 # Set the limits for all axes
-                ax[i].set_xlim(
-                    0,
-                    self.room_dims[-1][0] + self.room_start_coord[-1][0] + 0.5)
-                ax[i].set_ylim(
-                    0,
-                    self.room_dims[-1][1] + self.room_start_coord[-1][1] + 0.5)
+                ax[i].set_xlim(0, x_lim + 0.5)
+                ax[i].set_ylim(0, y_lim + 0.5)
             else:
                 amps_interp = griddata((x_rec, y_rec),
                                        amps[i, :], (x_mesh, y_mesh),
@@ -333,10 +333,7 @@ class RoomGeometry():
                 # Set values outside the limits to 0
                 amps_interp[~combined_mask] = 0  # Apply the mask
                 im = ax[i].imshow(db(amps_interp, is_squared=True),
-                                  extent=(0, self.room_dims[-1][0] +
-                                          self.room_start_coord[-1][0], 0,
-                                          self.room_dims[-1][1] +
-                                          self.room_start_coord[-1][1]),
+                                  extent=(0, x_lim, 0, y_lim),
                                   origin='lower',
                                   cmap='viridis')
             fig.colorbar(im, ax=ax[i], orientation='vertical')
