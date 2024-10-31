@@ -53,7 +53,8 @@ def main(config_dict: Config):
     # plot amplitudes as a function of receiver and geometry
     geom_config = config_dict.room_geom_config
     room = RoomGeometry(config_dict.fs, geom_config.num_rooms,
-                        geom_config.room_dims, geom_config.start_coordinates)
+                        geom_config.room_dims, geom_config.start_coordinates,
+                        geom_config.aperture_coords)
     room.plot_amps_at_receiver_points(
         receiver_locs,
         geom_config.source_pos,

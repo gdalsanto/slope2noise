@@ -74,7 +74,8 @@ def gen_dataset(config_dict: Config):
     t_vals = config_dict.t_vals
 
     room = RoomGeometry(config_dict.fs, num_rooms, np.array(room_dims),
-                        np.array(start_coordinates))
+                        np.array(start_coordinates),
+                        config_dict.room_geom_config.aperture_coords)
 
     for i_batch in range(n_batch):
         if config_dict.room_geom_config is None:

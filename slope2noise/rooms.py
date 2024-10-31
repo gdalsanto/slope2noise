@@ -17,14 +17,19 @@ class Meshgrid():
 
 class RoomGeometry():
 
-    def __init__(self, sample_rate: int, num_rooms: int, room_dims: List,
-                 room_start_coord: List):
+    def __init__(self,
+                 sample_rate: int,
+                 num_rooms: int,
+                 room_dims: List,
+                 room_start_coord: List,
+                 aperture_coords: Optional[List[List[Tuple]]] = None):
 
         self.sample_rate = sample_rate
         self.num_rooms = num_rooms
         self.room_dims = room_dims
         self.room_start_coord = room_start_coord
         self.room_meshgrid = self.get_3D_meshgrid(grid_spacing_m=0.1)
+        self.aperture_coords = aperture_coords
 
     @property
     def room_boundaries_2D(self):
@@ -270,6 +275,42 @@ class RoomGeometry():
 
         return amplitudes
 
+    def draw_boundaries(self, ax):
+        """Draw room boundaries around the 2D amplitude plot"""
+        for k in range(self.num_rooms):
+            x_start = self.room_start_coord[k][0]
+            x_end = self.room_dims[k][0] + self.room_start_coord[k][0]
+            y_start = self.room_start_coord[k][1]
+            y_end = self.room_dims[k][1] + self.room_start_coord[k][1]
+            ax.plot([x_start, x_end], [y_start, y_start],
+                    color='k',
+                    linestyle='-')
+            ax.plot([x_start, x_start], [y_start, y_end],
+                    color='k',
+                    linestyle='-')
+            ax.plot([x_start, x_end], [y_end, y_end], color='k', linestyle='-')
+            ax.plot([x_end, x_end], [y_start, y_end], color='k', linestyle='-')
+
+        if self.aperture_coords is not None:
+            num_apertures = len(self.aperture_coords)
+            for k in range(num_apertures):
+                cur_ap_coords = self.aperture_coords[k]
+                start_xy = cur_ap_coords[0]
+                end_xy = cur_ap_coords[1]
+                ax.plot([start_xy[0], end_xy[0]], [start_xy[1], start_xy[1]],
+                        color='w',
+                        linestyle='-')
+                ax.plot([start_xy[0], start_xy[0]], [start_xy[1], end_xy[1]],
+                        color='w',
+                        linestyle='-')
+                ax.plot([start_xy[0], end_xy[0]], [end_xy[1], end_xy[1]],
+                        color='w',
+                        linestyle='-')
+                ax.plot([end_xy[0], end_xy[0]], [start_xy[1], end_xy[1]],
+                        color='w',
+                        linestyle='-')
+        return ax
+
     def plot_amps_at_receiver_points(self,
                                      rec_pos: NDArray,
                                      source_pos: ArrayLike,
@@ -347,6 +388,7 @@ class RoomGeometry():
             ax[i].set_xlabel('X axis')
             ax[i].set_ylabel('Y axis')
             ax[i].set_title(f'Amplitudes for slope = {i+1} at receiver points')
+            ax[i] = self.draw_boundaries(ax[i])
 
         # Show the plot
         if title is not None:

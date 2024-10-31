@@ -1,7 +1,7 @@
 import os
 import time
 from pydantic import BaseModel, model_validator, field_validator
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 from pathlib import Path
 
 
@@ -10,6 +10,7 @@ class RoomGeometryConfig(BaseModel):
     room_dims: List[List]
     start_coordinates: List[List]
     source_pos: List
+    aperture_coords: Optional[List[List[Tuple]]] = None
 
 
 class AmpGenerationConfig(BaseModel):

@@ -207,7 +207,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
             # logger.info(
             #     f'num_rir = {i}, error = {20*np.log10(np.abs(error[i,:,k]))} dB'
             # )
-            est_amps[i, :, k] = cur_amps
+            est_amps[i, :, k] = np.squeeze(cur_amps)
 
     return est_amps**2
 
