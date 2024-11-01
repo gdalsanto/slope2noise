@@ -15,14 +15,14 @@ def rir_synthesis(t_vals: NDArray,
     """
     Synthesise RIRs with modal synthesis or white noise shaping
     Args:
-        t_vals (NDArray): desired T60 values in seconds
-        a_vals (NDArray): desired amplitudes for each slope
+        t_vals (NDArray): desired T60 values in seconds of size n_rir x n_slopes x n_bands
+        a_vals (NDArray): desired amplitudes for each slope of size n_rir x n_slopes x n_bands
         f_bands (ArrayLike): frequency bands in which T60s and amplitudes are specified
         ir_len (int): Length of the IR in samples
         type (str): method used for synthesis, modal or additive white noise
         n_modes (optional, int): number of modes to synthesise if using modal synthesis
     Returns:
-        NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_slopes x n_bands, and summer RIRs of size n_rir x ir_len
+        NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_slopes x n_bands, and summed RIRs of size n_rir x ir_len
     """
     # frequency bands are assumend to be log spaced
 
@@ -141,14 +141,16 @@ def rir_synthesis(t_vals: NDArray,
                 # Apply envelope to the sinusoidal mode
                 mode = mode * interp_envelope
 
-                # Add the mode to the corresponding band
-                synthesis_rirs[:, :, i_slope, i_band[i_mode]] += mode
-
                 # Save amplitude envelopes
                 envelope_a[:, :, i_slope,
                            i_band[i_mode]] = np.expand_dims(
                                np.sqrt(a_vals[:, i_slope, i_band[i_mode]]),
                                axis=-1) * np.sqrt((1 - interp_envelope))
+
+                # Add the mode to the corresponding band, and weight by the amplitude envelope
+                synthesis_rirs[:, :, i_slope, i_band[
+                    i_mode]] += mode * envelope_a[:, :, i_slope,
+                                                  i_band[i_mode]]
 
         elif type == 'wgn':
 
@@ -164,16 +166,24 @@ def rir_synthesis(t_vals: NDArray,
                 )  # the input inpulse will not be used in this case actually, get_filter argument is just a quick fix
                 band_energy = sum(ir_octave_filter**2, 0)
                 # fitler the random sequence in frequency to extract the band
+                # this is of shape n_rirs x ir_len x n_slopes x n_bands
                 filtered_noise[:, :, i_slope, :] = octave_filtering(
-                    random_sequence[:, :, i_slope, 0], fs, f_bands)
+                    random_sequence[..., 0], fs, f_bands)
+
                 for i_band in range(n_bands):
+                    # filtered gaussian noise, weighted by envelope in current band
                     gaussian_noise[:, :, i_slope, i_band] = np.einsum(
                         'nt, nt -> nt', filtered_noise[:, :, i_slope, i_band],
                         envelopes[..., i_band])
-                    envelope_a[:, :, i_slope,
-                               i_band] = np.expand_dims(
-                                   np.sqrt(a_vals[:, i_slope, i_band]),
-                                   axis=-1) / band_energy[i_band]
+                    # amplitudes weighted by the filter's energy in the band
+                    envelope_a[:, :, i_slope, i_band] = np.sqrt(
+                        np.expand_dims(a_vals[:, i_slope, i_band], axis=-1) /
+                        band_energy[i_band])
+                    synthesis_rirs[:, :, i_slope,
+                                   i_band] = gaussian_noise[:, :, i_slope,
+                                                            i_band] * envelope_a[:, :,
+                                                                                 i_slope,
+                                                                                 i_band]
             else:
 
                 # shape the random sequence and apply the envelope

@@ -11,6 +11,7 @@ from slope2noise.utils import db
 
 
 def main(config_dict: Config):
+
     n_rirs = config_dict.n_rirs
     batch_size = config_dict.batch_size
     num_batches = int(n_rirs / batch_size)
@@ -19,6 +20,7 @@ def main(config_dict: Config):
     receiver_locs = np.zeros((n_rirs, 3))
     a_vals = np.zeros((n_rirs, n_slopes))
     rirs = np.zeros((n_rirs, config_dict.ir_len))
+
     for batch_id in range(num_batches):
         data_path = Path(
             f'{config_dict.output_dir}/bb_wgn_{batch_id:04}.pkl').resolve()

@@ -34,8 +34,8 @@ class Config(BaseModel):
     # center frequnecy of the band. If none is provided, it is assumed to have homogeneous attenuation
     f_bands: Optional[
         List[float]] = None  # [125, 250, 500, 1000, 2000, 4000, 8000]
-    # decay time values limits
-    t_vals: List[float] = [0.1, 3.5]
+    # decay time values limits, of num_freq_bands x num_rooms
+    t_vals: List[List[float]] = [[0.1], [3.5]]
     # amplitude values limits (linear scale)
     a_vals_lims: List[float] = [10**(-3. / 10), 1]
     # number of common slopes

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from numpy.typing import NDArray, ArrayLike
-from typing import Optional
+from typing import Optional, List
 from config.config import Config
 from slope2noise.rooms import RoomGeometry, CommonSlopesRIR
 from slope2noise.rir_synthesis import rir_synthesis
@@ -20,7 +20,8 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
                                           n_slopes: int,
                                           batch_size: int,
                                           pkl_path: Optional[str] = None,
-                                          plot: bool = False):
+                                          f_bands: Optional[List] = None,
+                                          plot: bool = False) -> NDArray:
     """
     Generate amplitudes of shape batch_size x n_slopes based on the coupled space geometry
     Args:
@@ -31,34 +32,59 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
         batch_size (int): number of receivers
         pkl_path (optional, str): path to file that contains amplitudes distributions analysed from the ThreeRoomDataset
         plot (bool, False): whether to plot the distribution as a function of room geometry
+    ReturnsL:
+        NDArray: amplitudes of size n_rirs x n_slopes x n_bands
     """
     # read the mean amplitude distribution stored in a pickle file
     if pkl_path is not None:
         with open(Path(pkl_path).resolve(), 'rb') as f:
             gmm_dict = pickle.load(f)
+
         mean_amps = gmm_dict['means']
         weights = gmm_dict["weights"]
-        assert n_slopes <= len(
-            mean_amps
-        ), "number of desired slopes is greater than the number of slopes in the amplitude distribution"
-        weighted_mean = weights * mean_amps
-
     else:
         weighted_mean = None
 
     assert n_slopes == room.num_rooms, "number of desired slopes must match number of rooms in coupled space"
     assert receiver_locs.shape[0] == batch_size
 
-    # get amplitudes at the specified receiver locations
-    amplitudes_sampled = room.get_amplitude_based_on_position(
-        receiver_locs, source_loc, weighted_mean[:n_slopes, :n_slopes])
-    if plot:
-        room.plot_amps_at_receiver_points(receiver_locs,
-                                          source_loc,
-                                          amplitudes_sampled,
-                                          scatter_plot=True)
+    # if frequency-dependent means are provided
+    if 'band_centre_hz' in gmm_dict:
+        band_centre_hz = gmm_dict['band_centre_hz']
+        if f_bands is not None:
+            assert np.allclose(band_centre_hz, np.array(f_bands)), \
+            "The specified centre frequencies should match those of the dataset"
+        amplitudes_sampled = np.zeros((batch_size, n_slopes, len(f_bands)))
 
-    return amplitudes_sampled.T
+        for k in range(len(band_centre_hz)):
+            cur_weighted_mean = weights[k] * mean_amps[k]
+            amplitudes_sampled[..., k] = room.get_amplitude_based_on_position(
+                receiver_locs, source_loc,
+                cur_weighted_mean[:n_slopes, :n_slopes]).T
+            if plot:
+                room.plot_amps_at_receiver_points(
+                    receiver_locs,
+                    source_loc,
+                    amplitudes_sampled[-1],
+                    scatter_plot=True,
+                    cur_freq_hz=band_centre_hz[k])
+        return amplitudes_sampled
+
+    else:
+        weighted_mean = weights * mean_amps
+        assert n_slopes <= len(
+            mean_amps
+        ), "number of desired slopes is greater than the number of slopes in the amplitude distribution"
+        # get amplitudes at the specified receiver locations
+        amplitudes_sampled = room.get_amplitude_based_on_position(
+            receiver_locs, source_loc, weighted_mean[:n_slopes, :n_slopes]).T
+        if plot:
+            room.plot_amps_at_receiver_points(receiver_locs,
+                                              source_loc,
+                                              amplitudes_sampled,
+                                              scatter_plot=True)
+
+        return amplitudes_sampled
 
 
 def gen_dataset(config_dict: Config):
@@ -96,17 +122,21 @@ def gen_dataset(config_dict: Config):
                 config_dict.n_slopes,
                 config_dict.batch_size,
                 plot=False,
-                pkl_path=config_dict.amp_gen_config.amp_dist_filepath)
+                pkl_path=config_dict.amp_gen_config.amp_dist_filepath,
+                f_bands=config_dict.f_bands)
 
         else:
             a_vals = np.random.uniform(
                 10**(-3 / 10), 10**(0 / 10),
-                (config_dict.batch_size, config_dict.n_slopes))
+                (config_dict.batch_size, config_dict.n_slopes,
+                 len(config_dict.f_bands)))
         # generate the shaped wgn give the slopes and the decay times
-        # t_vals of size batch_size x n_slopes
-        _, rirs = rir_synthesis(np.repeat(np.array(t_vals)[np.newaxis, :],
-                                          config_dict.batch_size,
-                                          axis=0),
+        # t_vals of size batch_size x n_slopes X n_bands
+        t_vals_expanded = np.repeat(np.array(t_vals)[np.newaxis, ...],
+                                    config_dict.batch_size,
+                                    axis=0)
+
+        _, rirs = rir_synthesis(t_vals_expanded,
                                 a_vals,
                                 config_dict.f_bands,
                                 config_dict.fs,

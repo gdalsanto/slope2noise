@@ -3,7 +3,7 @@ batch_size: 10
 n_slopes: 2
 ir_len: 96000
 synthesis_type: "wgn"
-t_vals: [0.5, 1.7]
+t_vals: [[0.5], [1.7]]
 room_geom_config:
   num_rooms: 2
   room_dims: [[4,8,2], [6,2,2]]

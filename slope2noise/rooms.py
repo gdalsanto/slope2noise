@@ -317,6 +317,7 @@ class RoomGeometry():
                                      amps: NDArray,
                                      scatter_plot: bool = True,
                                      title: Optional[str] = None,
+                                     cur_freq_hz: Optional[float] = 1000,
                                      save_path: Optional[str] = None):
         """
         Plot the amplitudes of the different slopes at specified receiver points.
@@ -325,6 +326,8 @@ class RoomGeometry():
             amps (NDArray): N x num_rooms matrix of amplitudes at specified listener positions
             scatter_plot (bool): whether to plot the discrete amplitudes, 
                                  or interpolate them to be continuous functions of space
+            cur_freq_hz (optional (float)): band centre frequency in Hz
+
         """
         x_rec = rec_pos[:, 0]
         y_rec = rec_pos[:, 1]
@@ -363,7 +366,9 @@ class RoomGeometry():
             if scatter_plot:
                 im = ax[i].scatter(x_rec,
                                    y_rec,
-                                   c=db(amps[i, :], is_squared=True))
+                                   c=db(amps[i, :],
+                                        is_squared=True,
+                                        min_value=-40))
                 # Set the limits for all axes
                 ax[i].set_xlim(0, x_lim + 0.5)
                 ax[i].set_ylim(0, y_lim + 0.5)
@@ -387,7 +392,9 @@ class RoomGeometry():
 
             ax[i].set_xlabel('X axis')
             ax[i].set_ylabel('Y axis')
-            ax[i].set_title(f'Amplitudes for slope = {i+1} at receiver points')
+            ax[i].set_title(
+                f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1} at receiver points'
+            )
             ax[i] = self.draw_boundaries(ax[i])
 
         # Show the plot
