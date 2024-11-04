@@ -53,23 +53,24 @@ class Config(BaseModel):
     @classmethod
     def check_config_dict(cls, model):
         """Check of the room geometry makes sense"""
-        num_rooms = model.room_geom_config.num_rooms
-        if num_rooms != model.n_slopes:
-            raise ValueError(
-                "Number of rooms must be equal to the number of slopes")
+        if model.room_geom_config is not None:
+            num_rooms = model.room_geom_config.num_rooms
+            if num_rooms != model.n_slopes:
+                raise ValueError(
+                    "Number of rooms must be equal to the number of slopes")
 
-        if len(model.t_vals) != model.n_slopes:
-            raise ValueError(
-                "Length of specified T60 must match number of slopes")
+            if len(model.t_vals) != model.n_slopes:
+                raise ValueError(
+                    "Length of specified T60 must match number of slopes")
 
-        if model.batch_size > model.n_rirs:
-            raise ValueError(
-                f"Batch size {model.batch_size} should be smaller than the number of rirs {model.n_rirs}"
-            )
+            if model.batch_size > model.n_rirs:
+                raise ValueError(
+                    f"Batch size {model.batch_size} should be smaller than the number of rirs {model.n_rirs}"
+                )
 
-        num_dims = len(model.room_geom_config.room_dims)
-        num_start_coords = len(model.room_geom_config.start_coordinates)
-        assert num_dims == num_start_coords == num_rooms, \
-                "Room dimensions and start coordinates must be equal to number of rooms"
+            num_dims = len(model.room_geom_config.room_dims)
+            num_start_coords = len(model.room_geom_config.start_coordinates)
+            assert num_dims == num_start_coords == num_rooms, \
+                    "Room dimensions and start coordinates must be equal to number of rooms"
 
         return model

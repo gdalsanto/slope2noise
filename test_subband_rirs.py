@@ -47,7 +47,6 @@ def main(config_dict: Config):
         cur_rir = rirs[rir_idx[k], :]
         # this is of shape ir_len x n_bands
         filtered_rir = octave_filtering(cur_rir, fs, f_bands)
-        print(filtered_rir.shape)
         for j in range(n_bands):
             plt.figure()
             edf = np.flipud(

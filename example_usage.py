@@ -8,7 +8,7 @@ import DecayFitNet.python.toolbox.BayesianDecayAnalysis as bda
 
 from config.config import Config
 from slope2noise.rir_synthesis import rir_synthesis
-from slope2noise.utils import schroeder_backward_int, save_audio, calculate_amplitudes_least_squares
+from slope2noise.utils import schroeder_backward_int, db, save_audio, calculate_amplitudes_least_squares, octave_filtering
 
 
 def main(config_dict: Config):
@@ -22,7 +22,7 @@ def main(config_dict: Config):
     # sample energy decay parameters using uniform distribution
     # TODO: ideally t_vals, if frequency dependent, should follow a more realistic distribution
     t_vals = np.random.uniform(
-        config_dict.t_vals_lims[0], config_dict.t_vals_lims[1],
+        config_dict.t_vals[0], config_dict.t_vals[1],
         (config_dict.n_rirs, config_dict.n_slopes, n_bands))
 
     a_vals = np.random.uniform(
@@ -39,40 +39,58 @@ def main(config_dict: Config):
         n_modes=config_dict.n_modes,
     )
 
-    edf = np.flipud(np.cumsum(np.flipud(rirs[0, :]**2), axis=-1))
-    time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
-                       config_dict.ir_len)
-    plt.plot(time, 10 * np.log10(edf))
-    plt.plot(0, 10 * np.log10(a_vals[0]), 'kx')
-    plt.show()
-    plt.savefig("edf.png")
-
     # save audio files of rirs (only first channel)
     Path(config_dict.output_dir).mkdir(parents=True, exist_ok=True)
     save_audio(os.path.join(config_dict.output_dir, "rir.wav"), rirs[0, :],
                config_dict.fs)
+
     # test with Bayesian Decay Analysis
     BDA = bda.BayesianDecayAnalysis(config_dict.n_slopes,
                                     config_dict.fs,
                                     filter_frequencies=config_dict.f_bands)
 
+    if config_dict.f_bands is not None:
+        subband_rirs = octave_filtering(rirs, config_dict.fs,
+                                        config_dict.f_bands)
+    else:
+        subband_rirs = rirs[..., np.newaxis]
+
     # get amplitudes with least squares
-    A_ls = calculate_amplitudes_least_squares(t_vals,
-                                              config_dict.fs,
-                                              rirs[..., np.newaxis],
-                                              leave_out_ms=50.0)
+    A_ls = calculate_amplitudes_least_squares(
+        t_vals,
+        config_dict.fs,
+        subband_rirs,
+        leave_out_ms=50.0,
+    )
 
     # go through the parameters of the first 10 rirs
     for i in range(10):
         edc_param, norm_vals = BDA.estimate_parameters(rirs[i, :])
         # BDA takes the EDC parameters estimates for each band
-        T, A, N = np.mean(edc_param[0]), np.mean(edc_param[1]), np.mean(
-            edc_param[2])
+        T, A, N = edc_param[0], edc_param[1], edc_param[2]
         # amplitudes with least squares
 
         print(
-            f"Estimated T: {T:.3f}, A: {A:.3f}, A_LS: {np.squeeze(A_ls[i]):.3f}  - Reference T: {t_vals[i, 0, 0]:.3f}, A: {a_vals[i, 0, 0]:.3f}"
+            f"Estimated T: {np.squeeze(np.round(T, 3))}, A: {np.squeeze(np.round(A, 3))}, A_LS: {np.squeeze(np.round(A_ls[i], 3))}" \
+            f"  - Reference T: {np.squeeze(np.round(t_vals[i, 0, :], 3))}, A: {np.squeeze(np.round(a_vals[i, 0, :], 3))}"
         )
+
+    # this is of shape ir_len x n_bands
+    filtered_rir = octave_filtering(rirs[0, :], config_dict.fs,
+                                    config_dict.f_bands)
+    time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
+                       config_dict.ir_len)
+    for j in range(n_bands):
+        plt.figure()
+        edf = np.flipud(np.cumsum(np.flipud(filtered_rir[:, j]**2), axis=-1))
+        plt.plot(time, db(filtered_rir[:, j]))
+        plt.plot(time, db(edf, is_squared=True))
+        plt.plot(np.zeros(config_dict.n_slopes),
+                 db(a_vals[0, :, j], is_squared=True), 'kx')
+        plt.plot(np.zeros(config_dict.n_slopes),
+                 db(A_ls[0, :, j], is_squared=True), 'gd')
+        plt.title(f'RIR at frequency band = {config_dict.f_bands[j]:.0f} Hz')
+        plt.show()
 
 
 if __name__ == "__main__":

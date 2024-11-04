@@ -135,6 +135,8 @@ def gen_dataset(config_dict: Config):
         t_vals_expanded = np.repeat(np.array(t_vals)[np.newaxis, ...],
                                     config_dict.batch_size,
                                     axis=0)
+        if config_dict.f_bands is None:
+            t_vals_expanded = t_vals_expanded[..., 0]
 
         _, rirs = rir_synthesis(t_vals_expanded,
                                 a_vals,
@@ -152,6 +154,7 @@ def gen_dataset(config_dict: Config):
                                t_vals=t_vals,
                                rir=rirs,
                                sample_rate=config_dict.fs,
+                               f_bands=config_dict.f_bands,
                                batch_id=i_batch)
         # save it to a pkl file
         with open(

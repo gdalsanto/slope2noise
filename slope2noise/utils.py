@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray, ArrayLike
-from typing import Union
+from typing import Union, List, Optional
 from scipy.signal import butter, zpk2sos, sosfreqz, sosfilt, fftconvolve
 import soundfile as sf
 from loguru import logger
@@ -151,7 +151,8 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
 def calculate_amplitudes_least_squares(t_vals: NDArray,
                                        fs: float,
                                        rirs: NDArray,
-                                       leave_out_ms: float = 50.0) -> NDArray:
+                                       leave_out_ms: float = 50.0,
+                                       verbose: bool = False) -> NDArray:
     """
     Calculate amplitudes (one for each slope) using linear least squares
     Args:
@@ -160,6 +161,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
         rirs (NDArray): RIR matrix of shape n_rir x ir_len x n_bands
         leave_out_ms (float): number of samples to leave out of the 
                              RIR to prevent bad conditioning
+        verbose (bool): if true, the error in subbands is displayed
     Returns:
         NDArray: estimated amplitudes of shape n_rir x n_slopes x n_bands
     """
@@ -189,30 +191,42 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                                                    normalise_envelope=True,
                                                    add_noise=False)
 
-    est_amps = np.zeros((num_rirs, n_slopes, n_bands), dtype=float)
-    error = np.zeros_like(est_amps)
+    est_level = np.zeros((num_rirs, n_slopes, n_bands), dtype=float)
+    error = np.zeros_like(est_level)
 
     for i in range(num_rirs):
         for k in range(n_bands):
-            cur_rir = rirs[i, :, k]
+            cond_number = np.linalg.cond(np.abs(envelopes[i, :, :, k]))
+            if np.abs(cond_number) > 1e6:
+                logger.warning(
+                    f'Condition number in band {f_bands[k]:.3f} Hz is {db(cond_number):.3f} dB, skipping amplitude calculation'
+                )
+                continue
+
             # psi_k(t)
+            cur_rir = rirs[i, :, k]
             cur_edc = calculate_energy_envelope(cur_rir, fs, smooth_time_ms=50)
             cur_edc = cur_edc.reshape(ir_len, 1)
             # psi_k(t) - psi_k(L)
-            cur_envelope = envelopes[i, :, :, k] - envelopes[i, -1, :, k]
+            cur_envelope = (envelopes[i, :, :, k] - envelopes[i, -1, :, k])
             assert cur_envelope.shape == (ir_len, n_slopes)
-            cur_amps = np.linalg.pinv(cur_envelope) @ (cur_edc)
+            cur_level = np.linalg.pinv(cur_envelope) @ (cur_edc)
             error[i, :,
-                  k] = np.linalg.norm(cur_envelope @ cur_amps - cur_edc)**2
-            # logger.info(
-            #     f'num_rir = {i}, error = {20*np.log10(np.abs(error[i,:,k]))} dB'
-            # )
-            est_amps[i, :, k] = np.squeeze(cur_amps)
+                  k] = np.linalg.norm(cur_envelope @ cur_level - cur_edc)**2
+            if verbose:
+                logger.info(
+                    f'num_rir = {i}, num_band = {k}, error = {db(error[i,:,k], is_squared=True)} dB'
+                )
+            est_level[i, :, k] = np.squeeze(cur_level)
 
-    return est_amps**2
+    est_amps = est_level**2
+    return est_amps
 
 
-def octave_filtering(input_signal, fs, f_bands, get_filter=False):
+def octave_filtering(input_signal: ArrayLike,
+                     fs: float,
+                     f_bands: List,
+                     get_filter=False):
     num_bands = len(f_bands)
     out_bands = np.zeros((*input_signal.shape, num_bands))
 
