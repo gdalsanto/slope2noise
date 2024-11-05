@@ -342,7 +342,9 @@ class RoomGeometry():
         x_lim = max(lst[0] for lst in boundaries_list)
         y_lim = max(lst[1] for lst in boundaries_list)
 
-        fig, ax = plt.subplots(self.num_rooms, 1, figsize=(6, 8))
+        fig, ax = plt.subplots(self.num_rooms,
+                               1,
+                               figsize=(6, 3 * self.num_rooms))
         fig.tight_layout()
 
         if not scatter_plot:
@@ -365,39 +367,40 @@ class RoomGeometry():
 
         # Plot the X, Y, Z points
         for i in range(self.num_rooms):
+            cur_ax = ax if self.num_rooms == 1 else ax[i]
             if scatter_plot:
-                im = ax[i].scatter(x_rec,
-                                   y_rec,
-                                   c=db(amps[i, :],
-                                        is_squared=True,
-                                        min_value=-40))
+                im = cur_ax.scatter(x_rec,
+                                    y_rec,
+                                    c=db(amps[i, :],
+                                         is_squared=True,
+                                         min_value=-40))
                 # Set the limits for all axes
-                ax[i].set_xlim(0, x_lim + 0.5)
-                ax[i].set_ylim(0, y_lim + 0.5)
+                cur_ax.set_xlim(0, x_lim + 0.5)
+                cur_ax.set_ylim(0, y_lim + 0.5)
             else:
                 amps_interp = griddata((x_rec, y_rec),
                                        amps[i, :], (x_mesh, y_mesh),
                                        method='cubic')  # Interpolate z value
                 # Set values outside the limits to 0
                 amps_interp[~combined_mask] = 0  # Apply the mask
-                im = ax[i].imshow(db(amps_interp, is_squared=True),
-                                  extent=(0, x_lim, 0, y_lim),
-                                  origin='lower',
-                                  cmap='viridis')
-            fig.colorbar(im, ax=ax[i], orientation='vertical')
-            ax[i].scatter(source_pos[0],
-                          source_pos[1],
-                          color='red',
-                          marker='x',
-                          s=50)
+                im = cur_ax.imshow(db(amps_interp, is_squared=True),
+                                   extent=(0, x_lim, 0, y_lim),
+                                   origin='lower',
+                                   cmap='viridis')
+            fig.colorbar(im, ax=cur_ax, orientation='vertical')
+            cur_ax.scatter(source_pos[0],
+                           source_pos[1],
+                           color='red',
+                           marker='x',
+                           s=50)
             # Labels and title
 
-            ax[i].set_xlabel('X axis')
-            ax[i].set_ylabel('Y axis')
-            ax[i].set_title(
+            cur_ax.set_xlabel('X axis')
+            cur_ax.set_ylabel('Y axis')
+            cur_ax.set_title(
                 f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1} at receiver points'
             )
-            ax[i] = self.draw_boundaries(ax[i])
+            cur_ax = self.draw_boundaries(cur_ax)
 
         # Show the plot
         if title is not None:
