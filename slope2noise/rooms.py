@@ -278,6 +278,7 @@ class RoomGeometry():
     def draw_boundaries(self, ax):
         """Draw room boundaries around the 2D amplitude plot"""
         for k in range(self.num_rooms):
+
             x_start = self.room_start_coord[k][0]
             x_end = self.room_dims[k][0] + self.room_start_coord[k][0]
             y_start = self.room_start_coord[k][1]
@@ -292,6 +293,7 @@ class RoomGeometry():
             ax.plot([x_end, x_end], [y_start, y_end], color='k', linestyle='-')
 
         if self.aperture_coords is not None:
+
             num_apertures = len(self.aperture_coords)
             for k in range(num_apertures):
                 cur_ap_coords = self.aperture_coords[k]
@@ -323,7 +325,7 @@ class RoomGeometry():
         Plot the amplitudes of the different slopes at specified receiver points.
         Args:
             rec_pos (NDArray): N x 3 array of listener positions in cartesian coordinates
-            amps (NDArray): N x num_rooms matrix of amplitudes at specified listener positions
+            amps (NDArray): num_rooms x N matrix of amplitudes at specified listener positions
             scatter_plot (bool): whether to plot the discrete amplitudes, 
                                  or interpolate them to be continuous functions of space
             cur_freq_hz (optional (float)): band centre frequency in Hz
@@ -400,7 +402,8 @@ class RoomGeometry():
         # Show the plot
         if title is not None:
             plt.suptitle(title)
-        fig.subplots_adjust(hspace=0.2)
+        fig.subplots_adjust(hspace=0.3)
+        fig.tight_layout()
         if save_path is not None:
             plt.savefig(save_path)
         plt.show()
@@ -420,5 +423,6 @@ class CommonSlopesRIR():
     t_vals: NDArray
     rir: NDArray
     sample_rate: float
+    aperture_coords: Optional[List] = None
     batch_id: Optional[int] = None
     f_bands: Optional[ArrayLike] = None

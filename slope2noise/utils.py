@@ -142,7 +142,7 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
                                    axis=0)
     # smooth signal by convolving with window
     smoothed_signal = fftconvolve(bs, padded_signal)
-    env = np.real(np.sqrt(smoothed_signal))
+    env = np.real(np.sqrt(np.abs(smoothed_signal)))
     # ignore the first win_len samples
     env = env[odd_win_len + np.arange(len(sig))]
     return env
@@ -151,6 +151,7 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
 def calculate_amplitudes_least_squares(t_vals: NDArray,
                                        fs: float,
                                        rirs: NDArray,
+                                       f_bands: Optional[ArrayLike],
                                        leave_out_ms: float = 50.0,
                                        verbose: bool = False) -> NDArray:
     """
@@ -159,6 +160,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
         t_vals (NDArray): the T60s of shape n_rir x n_slopes x n_bands
         fs (float): sampling rate
         rirs (NDArray): RIR matrix of shape n_rir x ir_len x n_bands
+        f_bands (ArrayLike): frequency bands where RIR is calculated
         leave_out_ms (float): number of samples to leave out of the 
                              RIR to prevent bad conditioning
         verbose (bool): if true, the error in subbands is displayed
@@ -192,6 +194,22 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                                                    add_noise=False)
 
     est_level = np.zeros((num_rirs, n_slopes, n_bands), dtype=float)
+
+    # compensate for subband filter energy
+    if f_bands is not None:
+        impulse = np.zeros(rirs.shape[1])
+        impulse[0] = 1.0
+        ir_octave_filter = octave_filtering(impulse,
+                                            fs,
+                                            f_bands,
+                                            get_filter=True)
+        # the input inpulse will not be used in this case actually, get_filter argument is just a quick fix
+        band_energy = np.sum(ir_octave_filter**2, axis=0)
+        band_energy = np.broadcast_to(band_energy.reshape(1, 1, n_bands),
+                                      (num_rirs, n_slopes, n_bands))
+    else:
+        band_energy = np.ones_like(est_level)
+
     error = np.zeros_like(est_level)
 
     for i in range(num_rirs):

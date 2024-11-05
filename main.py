@@ -154,6 +154,7 @@ def gen_dataset(config_dict: Config):
                                t_vals=t_vals,
                                rir=rirs,
                                sample_rate=config_dict.fs,
+                               aperture_coords=aperture_coords,
                                f_bands=config_dict.f_bands,
                                batch_id=i_batch)
         # save it to a pkl file

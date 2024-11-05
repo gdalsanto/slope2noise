@@ -161,9 +161,11 @@ def rir_synthesis(t_vals: NDArray,
                 # get energy of the filter bank
                 impulse = np.zeros((ir_len))
                 impulse[0] = 1
-                ir_octave_filter = octave_filtering(
-                    impulse, fs, f_bands, get_filter=True
-                )  # the input inpulse will not be used in this case actually, get_filter argument is just a quick fix
+                # the input inpulse will not be used in this case actually, get_filter argument is just a quick fix
+                ir_octave_filter = octave_filtering(impulse,
+                                                    fs,
+                                                    f_bands,
+                                                    get_filter=True)
                 band_energy = sum(ir_octave_filter**2, 0)
                 # fitler the random sequence in frequency to extract the band
                 # this is of shape n_rirs x ir_len x n_slopes x n_bands
