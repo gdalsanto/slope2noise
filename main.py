@@ -97,6 +97,7 @@ def gen_dataset(config_dict: Config):
     num_rooms = config_dict.room_geom_config.num_rooms
     room_dims = config_dict.room_geom_config.room_dims
     start_coordinates = config_dict.room_geom_config.start_coordinates
+    aperture_coords = config_dict.room_geom_config.aperture_coords
     t_vals = config_dict.t_vals
 
     room = RoomGeometry(config_dict.fs, num_rooms, np.array(room_dims),
