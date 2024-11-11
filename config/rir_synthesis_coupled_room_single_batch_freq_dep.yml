@@ -4,7 +4,7 @@ n_slopes: 2
 ir_len: 96000
 synthesis_type: "wgn"
 f_bands: [63, 125, 250, 500, 1000, 2000, 4000, 8000]
-t_vals: [[0.8, 1.0, 1.0, 0.8, 0.7, 0.5, 0.4, 0.3], [0.2, 0.25, 0.25, 0.1, 0.15, 0.08, 0.05, 0.05]]
+t_vals: [[0.8, 1.0, 1.0, 0.8, 0.7, 0.5, 0.4, 0.3], [0.45, 0.35, 0.3, 0.3, 0.25, 0.2, 0.15, 0.1]]
 output_dir: "../../resources/synthetic_dataset/two_coupled_rooms_freq_dep/"
 room_geom_config:
   num_rooms: 2
