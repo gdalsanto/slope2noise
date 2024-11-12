@@ -247,8 +247,11 @@ def octave_filtering(input_signal: ArrayLike,
                      f_bands: List,
                      get_filter=False):
     num_bands = len(f_bands)
-    out_bands = np.zeros((*input_signal.shape, num_bands))
-
+    
+    if get_filter:
+        out_bands = np.zeros((max(input_signal.shape), num_bands))
+    else: 
+        out_bands = np.zeros((*input_signal.shape, num_bands))          
     for b_idx in range(num_bands):
         if f_bands[b_idx] == 0:
             f_cutoff = (1 / np.sqrt(1.5)) * f_bands[b_idx + 1]
