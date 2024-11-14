@@ -112,12 +112,11 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
         exponential = np.einsum('ntb, nb -> ntb', exponential,
                                 np.sqrt((1 - np.exp(-2 * tau_vals / fs))))
 
-    # calculate noise
-    ir_len = len(time)
-    noise = np.linspace(1, 1 / ir_len, ir_len)
-
     # construct the decay kernel
     if add_noise:
+        # calculate noise
+        ir_len = len(time)
+        noise = np.linspace(1, 1 / ir_len, ir_len)
         return np.concatenate((exponential, noise), axis=0)
     else:
         return exponential
@@ -242,40 +241,45 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
     return est_amps
 
 
-def octave_filtering(input_signal: ArrayLike,
-                     fs: float,
-                     f_bands: List,
-                     get_filter=False):
+def get_bandpass_filters(fs: float, f_bands: List, filter_order: int = 5):
+    """Return bandpass filters with centre frequencies at f_bands in SOS format"""
     num_bands = len(f_bands)
-    
-    if get_filter:
-        out_bands = np.zeros((max(input_signal.shape), num_bands))
-    else: 
-        out_bands = np.zeros((*input_signal.shape, num_bands))          
+    sos = np.zeros((filter_order, 6, num_bands), dtype=np.float64)
     for b_idx in range(num_bands):
         if f_bands[b_idx] == 0:
             f_cutoff = (1 / np.sqrt(1.5)) * f_bands[b_idx + 1]
-            z, p, k = butter(5, f_cutoff / (fs / 2), output='zpk')
+            z, p, k = butter(filter_order, f_cutoff / (fs / 2), output='zpk')
         elif f_bands[b_idx] == fs / 2:
             f_cutoff = np.sqrt(1.5) * f_bands[b_idx - 1]
-            z, p, k = butter(5,
+            z, p, k = butter(filter_order,
                              f_cutoff / (fs / 2),
                              btype='high',
                              output='zpk')
         else:
             this_band = f_bands[b_idx] * np.array(
                 [1 / np.sqrt(1.5), np.sqrt(1.5)])
-            z, p, k = butter(5,
+            z, p, k = butter(filter_order,
                              this_band / (fs // 2),
                              btype='band',
                              output='zpk')
+        sos[..., b_idx] = zpk2sos(z, p, k)
+    return sos
 
-        sos = zpk2sos(z, p, k)
 
-        w, h = sosfreqz(sos, worN=len(input_signal) // 2 + 1)
+def octave_filtering(input_signal: ArrayLike,
+                     fs: float,
+                     f_bands: List,
+                     get_filter=False):
+    num_bands = len(f_bands)
+    out_bands = np.zeros((*input_signal.shape, num_bands))
+    sos = get_bandpass_filters(fs, f_bands)
+
+    for b_idx in range(num_bands):
+        cur_sos = sos[..., b_idx].copy()
+        w, h = sosfreqz(cur_sos, worN=len(input_signal) // 2 + 1)
         # somehow this does not work when the input signal is an impulse
         if get_filter:
             out_bands[..., b_idx] = np.fft.irfft(h)
         else:
-            out_bands[..., b_idx] = sosfilt(sos, input_signal)
+            out_bands[..., b_idx] = sosfilt(cur_sos, input_signal)
     return out_bands

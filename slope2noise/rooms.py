@@ -320,7 +320,8 @@ class RoomGeometry():
                                      scatter_plot: bool = True,
                                      title: Optional[str] = None,
                                      cur_freq_hz: Optional[float] = 1000,
-                                     save_path: Optional[str] = None):
+                                     save_path: Optional[str] = None,
+                                     error_plot: bool = False):
         """
         Plot the amplitudes of the different slopes at specified receiver points.
         Args:
@@ -329,7 +330,7 @@ class RoomGeometry():
             scatter_plot (bool): whether to plot the discrete amplitudes, 
                                  or interpolate them to be continuous functions of space
             cur_freq_hz (optional (float)): band centre frequency in Hz
-
+            error_plot (bool): whether we are plotting amplitudes or their mismatch error
         """
         x_rec = rec_pos[:, 0]
         y_rec = rec_pos[:, 1]
@@ -386,6 +387,7 @@ class RoomGeometry():
                 im = cur_ax.imshow(db(amps_interp, is_squared=True),
                                    extent=(0, x_lim, 0, y_lim),
                                    origin='lower',
+                                   vmin=0 if error_plot else -60,
                                    cmap='viridis')
             fig.colorbar(im, ax=cur_ax, orientation='vertical')
             cur_ax.scatter(source_pos[0],
@@ -397,8 +399,11 @@ class RoomGeometry():
 
             cur_ax.set_xlabel('X axis')
             cur_ax.set_ylabel('Y axis')
-            cur_ax.set_title(
-                f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1}')
+            if cur_freq_hz is not None:
+                cur_ax.set_title(
+                    f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1}')
+            else:
+                cur_ax.set_title(f'Broadband amplitudes for slope = {i+1}')
             cur_ax = self.draw_boundaries(cur_ax)
 
         # Show the plot
@@ -409,6 +414,7 @@ class RoomGeometry():
         if save_path is not None:
             plt.savefig(save_path)
         plt.show()
+        return fig
 
 
 @dataclass
