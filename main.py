@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from numpy.typing import NDArray, ArrayLike
-from typing import Optional, List
+from typing import Optional, List, Union
 from config.config import Config
 from slope2noise.rooms import RoomGeometry, CommonSlopesRIR
 from slope2noise.rir_synthesis import rir_synthesis
@@ -16,7 +16,8 @@ from slope2noise.rir_synthesis import rir_synthesis
 
 def generate_amplitudes_based_on_geometry(room: RoomGeometry,
                                           receiver_locs: NDArray,
-                                          source_loc: ArrayLike,
+                                          source_loc: Union[ArrayLike,
+                                                            NDArray],
                                           n_slopes: int,
                                           batch_size: int,
                                           pkl_path: Optional[str] = None,
@@ -27,7 +28,7 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
     Args:
         room (RoomGeometry): room object containing the geometric details of the coupled space
         receiver_locs (NDArray): array of receiver locations of size batch_size x 3
-        source_loc (ArrayLike): source position of size 3
+        source_loc (ArrayLike): array of source positions of size 3, or batch_size x 3
         n_slopes (int): number of slopes (corresponds to number of rooms in coupled space)
         batch_size (int): number of receivers
         pkl_path (optional, str): path to file that contains amplitudes distributions analysed from the ThreeRoomDataset
@@ -54,20 +55,36 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
         if f_bands is not None:
             assert np.allclose(band_centre_hz, np.array(f_bands)), \
             "The specified centre frequencies should match those of the dataset"
-        amplitudes_sampled = np.zeros((batch_size, n_slopes, len(f_bands)))
+
+        if source_loc.ndim == 1:
+            amplitudes_sampled = np.zeros((batch_size, n_slopes, len(f_bands)))
+        else:
+            amplitudes_sampled = np.zeros(
+                (batch_size * source_loc.shape[0], n_slopes, len(f_bands)))
 
         for k in range(len(band_centre_hz)):
             cur_weighted_mean = weights[k] * mean_amps[k]
-            amplitudes_sampled[..., k] = room.get_amplitude_based_on_position(
-                receiver_locs, source_loc,
-                cur_weighted_mean[:n_slopes, :n_slopes]).T
-            if plot:
-                room.plot_amps_at_receiver_points(
-                    receiver_locs,
-                    source_loc,
-                    amplitudes_sampled[-1],
-                    scatter_plot=True,
-                    cur_freq_hz=band_centre_hz[k])
+            if source_loc.ndim == 1:
+                amplitudes_sampled[
+                    ..., k] = room.get_amplitude_based_on_position(
+                        receiver_locs, source_loc,
+                        cur_weighted_mean[:n_slopes, :n_slopes]).T
+
+                if plot:
+                    room.plot_amps_at_receiver_points(
+                        receiver_locs,
+                        source_loc,
+                        amplitudes_sampled[-1],
+                        scatter_plot=True,
+                        cur_freq_hz=band_centre_hz[k])
+            else:
+                for j in range(source_loc.shape[0]):
+                    amplitudes_sampled[
+                        j * batch_size:(j + 1) * batch_size, :,
+                        k] = room.get_amplitude_based_on_position(
+                            receiver_locs, source_loc[j],
+                            cur_weighted_mean[:n_slopes, :n_slopes]).T
+
         return amplitudes_sampled
 
     else:
@@ -90,13 +107,17 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
 def gen_dataset(config_dict: Config):
 
     # get number of batches
-    n_batch = config_dict.n_rirs // config_dict.batch_size
-    if config_dict.n_rirs % config_dict.batch_size != 0:
-        n_batch += 1
+    denom = config_dict.batch_size**2 if config_dict.use_multiple_sources else config_dict.batch_size
+    if config_dict.n_rirs % denom != 0:
+        raise ValueError(
+            "Number of RIRs should divide by batch_size if using a single source, or by the square \
+            of the batch_size if using many sources")
 
+    n_batch = config_dict.n_rirs // denom
     num_rooms = config_dict.room_geom_config.num_rooms
     room_dims = config_dict.room_geom_config.room_dims
     start_coordinates = config_dict.room_geom_config.start_coordinates
+    aperture_coords = config_dict.room_geom_config.aperture_coords
     t_vals = config_dict.t_vals
 
     room = RoomGeometry(config_dict.fs, num_rooms, np.array(room_dims),
@@ -104,13 +125,23 @@ def gen_dataset(config_dict: Config):
                         config_dict.room_geom_config.aperture_coords)
 
     for i_batch in range(n_batch):
-        if config_dict.room_geom_config is None:
+        # generate source and receiver points
+        if config_dict.use_multiple_sources:
+            source_loc = room.sample_interior_points(
+                n_points=config_dict.batch_size)
+        elif config_dict.room_geom_config is None or config_dict.room_geom_config.source_pos is None:
             source_loc = room.sample_interior_points(n_points=1)
         else:
             source_loc = np.array(config_dict.room_geom_config.source_pos)
         # sample the receiver location within the room
         receiver_locs = room.sample_interior_points(
             n_points=config_dict.batch_size)
+
+        # number of source and receiver points
+        print(source_loc.ndim)
+        num_src_rec_pts = receiver_locs.shape[
+            0] if source_loc.ndim == 1 else receiver_locs.shape[
+                0] * source_loc.shape[0]
 
         # get the amplitudes of the slopes
         # generate broadband amplitudes based on the coupled space geometry
@@ -126,14 +157,13 @@ def gen_dataset(config_dict: Config):
                 f_bands=config_dict.f_bands)
 
         else:
-            a_vals = np.random.uniform(
-                10**(-3 / 10), 10**(0 / 10),
-                (config_dict.batch_size, config_dict.n_slopes,
-                 len(config_dict.f_bands)))
+            a_vals = np.random.uniform(10**(-3 / 10), 10**(0 / 10),
+                                       (num_src_rec_pts, config_dict.n_slopes,
+                                        len(config_dict.f_bands)))
         # generate the shaped wgn give the slopes and the decay times
         # t_vals of size batch_size x n_slopes X n_bands
         t_vals_expanded = np.repeat(np.array(t_vals)[np.newaxis, ...],
-                                    config_dict.batch_size,
+                                    num_src_rec_pts,
                                     axis=0)
         if config_dict.f_bands is None:
             t_vals_expanded = t_vals_expanded[..., 0]
@@ -144,6 +174,14 @@ def gen_dataset(config_dict: Config):
                                 config_dict.fs,
                                 config_dict.ir_len,
                                 type=config_dict.synthesis_type)
+
+        if source_loc.ndim > 1:
+            rirs = rirs.reshape(source_loc.shape[0], receiver_locs.shape[0],
+                                rirs.shape[-1])
+            a_vals = a_vals.reshape(source_loc.shape[0],
+                                    receiver_locs.shape[0], a_vals.shape[-2],
+                                    a_vals.shape[-1])
+
         # create instance of CommonSlopes dataclass
         RIRs = CommonSlopesRIR(room_dims=room_dims,
                                room_start_coords=start_coordinates,

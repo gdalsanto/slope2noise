@@ -3,7 +3,7 @@ from numpy.typing import NDArray, ArrayLike
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 from .utils import db
 
@@ -398,8 +398,7 @@ class RoomGeometry():
             cur_ax.set_xlabel('X axis')
             cur_ax.set_ylabel('Y axis')
             cur_ax.set_title(
-                f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1} at receiver points'
-            )
+                f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1}')
             cur_ax = self.draw_boundaries(cur_ax)
 
         # Show the plot
@@ -419,7 +418,7 @@ class CommonSlopesRIR():
     '''
     room_dims: List
     room_start_coords: List
-    source_locs: ArrayLike
+    source_locs: Union[ArrayLike, NDArray]
     receiver_locs: NDArray
     n_slopes: int
     a_vals: NDArray
