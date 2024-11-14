@@ -14,14 +14,16 @@ def main(config_dict: Config):
 
     n_rirs = config_dict.n_rirs
     batch_size = config_dict.batch_size
-    num_batches = int(n_rirs / batch_size)
+    denom = batch_size**2 if config_dict.use_multiple_sources else batch_size
+    num_batches = n_rirs // denom
     n_slopes = config_dict.n_slopes
 
     num_receivers = int(
-        np.sqrt(n_rirs)) if config_dict.use_multiple_sources else n_rirs
-    num_sources = int(
-        np.sqrt(n_rirs)) if config_dict.use_multiple_sources else 1
+        n_rirs / batch_size) if config_dict.use_multiple_sources else n_rirs
+    num_sources = int(n_rirs /
+                      batch_size) if config_dict.use_multiple_sources else 1
     receiver_locs = np.zeros((num_receivers, 3))
+    source_locs = np.zeros((num_sources, 3))
     a_vals = np.zeros((num_sources, num_receivers, n_slopes))
     rirs = np.zeros((num_sources, num_receivers, config_dict.ir_len))
 
@@ -30,39 +32,41 @@ def main(config_dict: Config):
             f'{config_dict.output_dir}/bb_wgn_{batch_id:04}.pkl').resolve()
         batch_idx_slice = np.arange(batch_id * batch_size,
                                     (batch_id + 1) * batch_size)
-
         with open(data_path, 'rb') as f:
             rir_data = pickle.load(f)
 
         receiver_locs[batch_idx_slice, :] = rir_data.receiver_locs
 
         if config_dict.use_multiple_sources:
-            source_locs[batch_idx_slice, :] = rir_data.source_loc
-            a_vals[batch_idx_slice, batch_idx_slice, :] = rir_data.a_vals
-            rirs[batch_idx_slice, batch_idx_slice, :] = rir_data.rir
+            source_locs[batch_idx_slice, :] = rir_data.source_locs
+            a_vals[batch_idx_slice[:, None],
+                   batch_idx_slice, :] = rir_data.a_vals
+            rirs[batch_idx_slice[:, None], batch_idx_slice, :] = rir_data.rir
         else:
-            a_vals[batch_idx_slice, :] = rir_data.a_vals
-            rirs[batch_idx_slice, :] = rir_data.rir
+            source_locs = rir_data.source_locs
+            a_vals[0, batch_idx_slice, :] = rir_data.a_vals
+            rirs[0, batch_idx_slice, :] = rir_data.rir
 
     # plot RIR EDF
-    if not config_dict.use_multiple_sources:
-        num_rirs_to_plot = 10
-        rir_idx = np.random.randint(0, n_rirs, size=num_rirs_to_plot)
-
-        for k in range(num_rirs_to_plot):
-            plt.figure()
-            edf = np.flipud(
-                np.cumsum(np.flipud(rirs[rir_idx[k], :]**2), axis=-1))
-            time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
-                               config_dict.ir_len)
-            plt.plot(time, db(rirs[rir_idx[k], :]))
-            plt.plot(time, db(edf, is_squared=True))
-            plt.plot(np.zeros(n_slopes),
-                     db(a_vals[rir_idx[k], :], is_squared=True), 'kx')
-            plt.title(
-                f'RIR at position {receiver_locs[rir_idx[k], 0]:.2f}, {receiver_locs[rir_idx[k], 1]:.2f}, {receiver_locs[rir_idx[k], 2]:.2f} m'
-            )
-            plt.show()
+    num_rirs_to_plot = 10
+    rir_idx = np.random.randint(0, rirs.shape[1], size=num_rirs_to_plot)
+    src_idx = 0
+    for k in range(num_rirs_to_plot):
+        plt.figure()
+        edf = np.flipud(
+            np.cumsum(np.flipud(rirs[src_idx, rir_idx[k], :]**2), axis=-1))
+        time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
+                           config_dict.ir_len)
+        plt.plot(time, db(rirs[src_idx, rir_idx[k], :]))
+        plt.plot(time, db(edf, is_squared=True))
+        plt.plot(np.zeros(n_slopes),
+                 db(a_vals[src_idx, rir_idx[k], :], is_squared=True), 'kx')
+        plt.title(
+            f'RIR at receiver pos {receiver_locs[rir_idx[k], 0]:.2f}, {receiver_locs[rir_idx[k], 1]:.2f}, {receiver_locs[rir_idx[k], 2]:.2f}m '
+            +
+            f'at source pos {source_locs[0, 0]:.2f}, {source_locs[0, 1]:.2f}, {source_locs[0, 2]:.2f}m'
+        )
+        plt.show()
 
     # plot amplitudes as a function of receiver and geometry
     geom_config = config_dict.room_geom_config

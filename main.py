@@ -6,6 +6,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+from loguru import logger
 
 from numpy.typing import NDArray, ArrayLike
 from typing import Optional, List, Union
@@ -92,14 +93,26 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
         assert n_slopes <= len(
             mean_amps
         ), "number of desired slopes is greater than the number of slopes in the amplitude distribution"
-        # get amplitudes at the specified receiver locations
-        amplitudes_sampled = room.get_amplitude_based_on_position(
-            receiver_locs, source_loc, weighted_mean[:n_slopes, :n_slopes]).T
-        if plot:
-            room.plot_amps_at_receiver_points(receiver_locs,
-                                              source_loc,
-                                              amplitudes_sampled,
-                                              scatter_plot=True)
+        if source_loc.ndim == 1:
+            # get amplitudes at the specified receiver locations for a single source
+            amplitudes_sampled = room.get_amplitude_based_on_position(
+                receiver_locs, source_loc,
+                weighted_mean[:n_slopes, :n_slopes]).T
+            if plot:
+                room.plot_amps_at_receiver_points(receiver_locs,
+                                                  source_loc,
+                                                  amplitudes_sampled,
+                                                  scatter_plot=True)
+        else:
+            # get amplitudes at the receiver locations for multiple sources
+            amplitudes_sampled = np.zeros(
+                (batch_size * source_loc.shape[0], n_slopes))
+            for j in range(source_loc.shape[0]):
+                amplitudes_sampled[
+                    j * batch_size:(j + 1) *
+                    batch_size, :] = room.get_amplitude_based_on_position(
+                        receiver_locs, source_loc[j],
+                        weighted_mean[:n_slopes, :n_slopes]).T
 
         return amplitudes_sampled
 
@@ -114,6 +127,7 @@ def gen_dataset(config_dict: Config):
             of the batch_size if using many sources")
 
     n_batch = config_dict.n_rirs // denom
+    logger.info(f"Number of batches = {n_batch}")
     num_rooms = config_dict.room_geom_config.num_rooms
     room_dims = config_dict.room_geom_config.room_dims
     start_coordinates = config_dict.room_geom_config.start_coordinates
@@ -129,7 +143,7 @@ def gen_dataset(config_dict: Config):
         if config_dict.use_multiple_sources:
             source_loc = room.sample_interior_points(
                 n_points=config_dict.batch_size)
-        elif config_dict.room_geom_config is None or config_dict.room_geom_config.source_pos is None:
+        elif config_dict.room_geom_config.source_pos is None:
             source_loc = room.sample_interior_points(n_points=1)
         else:
             source_loc = np.array(config_dict.room_geom_config.source_pos)
@@ -138,7 +152,6 @@ def gen_dataset(config_dict: Config):
             n_points=config_dict.batch_size)
 
         # number of source and receiver points
-        print(source_loc.ndim)
         num_src_rec_pts = receiver_locs.shape[
             0] if source_loc.ndim == 1 else receiver_locs.shape[
                 0] * source_loc.shape[0]
@@ -178,9 +191,9 @@ def gen_dataset(config_dict: Config):
         if source_loc.ndim > 1:
             rirs = rirs.reshape(source_loc.shape[0], receiver_locs.shape[0],
                                 rirs.shape[-1])
-            a_vals = a_vals.reshape(source_loc.shape[0],
-                                    receiver_locs.shape[0], a_vals.shape[-2],
-                                    a_vals.shape[-1])
+            new_shape = (source_loc.shape[0],
+                         receiver_locs.shape[0]) + a_vals.shape[1:]
+            a_vals = a_vals.reshape(new_shape)
 
         # create instance of CommonSlopes dataclass
         RIRs = CommonSlopesRIR(room_dims=room_dims,
