@@ -91,7 +91,7 @@ def main(config_dict: Config):
         plt.plot(np.zeros(config_dict.n_slopes),
                  db(A_ls[0, :, j], is_squared=True), 'gd')
         plt.title(f'RIR at frequency band = {config_dict.f_bands[j]:.0f} Hz')
-        plt.ylim([-40, 5])
+        plt.ylim([-80, 5])
         plt.show()
 
 

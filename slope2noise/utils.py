@@ -112,12 +112,11 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
         exponential = np.einsum('ntb, nb -> ntb', exponential,
                                 np.sqrt((1 - np.exp(-2 * tau_vals / fs))))
 
-    # calculate noise
-    ir_len = len(time)
-    noise = np.linspace(1, 1 / ir_len, ir_len)
-
     # construct the decay kernel
     if add_noise:
+        # calculate noise
+        ir_len = len(time)
+        noise = np.linspace(1, 1 / ir_len, ir_len)
         return np.concatenate((exponential, noise), axis=0)
     else:
         return exponential
