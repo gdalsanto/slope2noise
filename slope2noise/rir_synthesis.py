@@ -67,12 +67,12 @@ def rir_synthesis(t_vals: NDArray,
 
     # envelope is in linear scale, not quadratic, therefore decay rates halve, and T values double
     t_vals_envelope = 2 * np.array(t_vals)
-    a_vals_envelope = np.sqrt(a_vals) * np.sqrt(1-np.exp(-np.log(1e6)/fs/t_vals_envelope))
+    a_vals_envelope = np.sqrt(a_vals)
 
     for i_slope in range(n_slopes):
 
         # generate decay envelope
-        envelopes = decay_kernel(t_vals_envelope[:,i_slope,...],
+        envelopes = decay_kernel(t_vals_envelope[:, i_slope, ...],
                                  time,
                                  fs,
                                  normalise_envelope=True,
@@ -89,7 +89,7 @@ def rir_synthesis(t_vals: NDArray,
                 np.expand_dims(a_vals_envelope[:, :, 0], 1), a_vals_envelope,
                 np.expand_dims(a_vals_envelope[:, :, -1], 1)
             ],
-                                    axis=-1)
+                                             axis=-1)
 
         if type == 'modal':
 
@@ -180,8 +180,8 @@ def rir_synthesis(t_vals: NDArray,
                         envelopes[..., i_band])
                     # amplitudes weighted by the filter's energy in the band
                     envelope_a[:, :, i_slope, i_band] = np.sqrt(
-                        np.expand_dims(a_vals_envelope[:, i_slope, i_band], axis=-1) /
-                        band_energy[i_band])
+                        np.expand_dims(a_vals_envelope[:, i_slope, i_band],
+                                       axis=-1) / band_energy[i_band])
                     synthesis_rirs[:, :, i_slope,
                                    i_band] = gaussian_noise[:, :, i_slope,
                                                             i_band] * envelope_a[:, :,
