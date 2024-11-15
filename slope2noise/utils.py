@@ -173,8 +173,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
         t_vals = t_vals.reshape(1, t_vals.shape[0], t_vals.shape[1])
 
     leave_out_samps = ms_to_samps(leave_out_ms, fs)
-    if leave_out_samps > 0:
-        rirs = rirs[:, :-leave_out_samps, :]
+    rirs = rirs[:, :-leave_out_samps, :]
 
     num_rirs, ir_len, n_bands = rirs.shape
     n_slopes = t_vals.shape[1]
