@@ -68,7 +68,7 @@ def ms_to_samps(ms: Union[float, ArrayLike],
         return samp.astype(np.int32)
 
 
-def schroeder_backward_int(rir: NDArray, normalise: bool = True):
+def schroeder_backward_int(rir: NDArray, normalize: bool = True):
 
     out = discard_trailing_zeros(rir)
 
@@ -77,7 +77,7 @@ def schroeder_backward_int(rir: NDArray, normalise: bool = True):
     out = np.cumsum(out**2, axis=-1)
     out = np.flip(out, axis=-1)
 
-    if normalise:
+    if normalize:
         # Normalize to 1
         norm_vals = np.max(out, axis=-1, keepdims=True)  # per channel
         out = out / norm_vals
@@ -184,7 +184,8 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
     for i_slope in range(n_slopes):
         # envelope is in linear scale, not quadratic, therefore decay rates halve, and T values double
         envelope_t = 2 * np.array(t_vals[:, i_slope, ...])
-
+        if num_rirs == 1:
+            envelope_t = envelope_t.reshape(1, n_bands)
         # generate decay envelopes from t_vals
         envelopes[:, :, i_slope, :] = decay_kernel(envelope_t,
                                                    time,
@@ -193,21 +194,6 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                                                    add_noise=False)
 
     est_level = np.zeros((num_rirs, n_slopes, n_bands), dtype=float)
-
-    # compensate for subband filter energy
-    if f_bands is not None:
-        impulse = np.zeros(rirs.shape[1])
-        impulse[0] = 1.0
-        ir_octave_filter = octave_filtering(impulse,
-                                            fs,
-                                            f_bands,
-                                            get_filter=True)
-        # the input inpulse will not be used in this case actually, get_filter argument is just a quick fix
-        band_energy = np.sum(ir_octave_filter**2, axis=0)
-        band_energy = np.broadcast_to(band_energy.reshape(1, 1, n_bands),
-                                      (num_rirs, n_slopes, n_bands))
-    else:
-        band_energy = np.ones_like(est_level)
 
     error = np.zeros_like(est_level)
 
@@ -244,6 +230,7 @@ def get_bandpass_filters(fs: float, f_bands: List, filter_order: int = 5):
     """Return bandpass filters with centre frequencies at f_bands in SOS format"""
     num_bands = len(f_bands)
     sos = np.zeros((filter_order, 6, num_bands), dtype=np.float64)
+
     for b_idx in range(num_bands):
         if f_bands[b_idx] == 0:
             f_cutoff = (1 / np.sqrt(1.5)) * f_bands[b_idx + 1]
