@@ -67,7 +67,7 @@ def rir_synthesis(t_vals: NDArray,
 
     # envelope is in linear scale, not quadratic, therefore decay rates halve, and T values double
     t_vals_envelope = 2 * np.array(t_vals)
-    a_vals_envelope = np.sqrt(a_vals) * np.sqrt(1-np.exp(-np.log(1e6)/fs/t_vals_envelope))
+    a_vals_envelope = np.sqrt(a_vals)
 
     for i_slope in range(n_slopes):
 
