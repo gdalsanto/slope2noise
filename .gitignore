@@ -2,4 +2,4 @@ __pycache__
 .vscode
 .DS_Store
 data/
-test_amplitude_conversion.html
+.slope2noise-env/
