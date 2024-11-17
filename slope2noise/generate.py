@@ -87,7 +87,10 @@ def shaped_wgn( t_vals: NDArray,
             band_energy = sum(ir_octave_filter**2, 0)
             # fitler the random sequence in frequency to extract the band
             filtered_noise[:, :, i_slope, :] = octave_filtering(
-                random_sequence[..., 0], fs, f_bands)
+                random_sequence[..., 0], 
+                fs, 
+                f_bands,
+                ir_len=ir_len)
 
             for i_band in range(n_bands):
                 # filtered gaussian noise, weighted by envelope in current band
