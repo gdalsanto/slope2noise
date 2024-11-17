@@ -55,8 +55,7 @@ def shaped_wgn( t_vals: NDArray,
     # initialize output arrays
     gaussian_noise = np.zeros(
         (n_rirs, ir_len, n_slopes, n_bands)) 
-    envelope_a = np.zeros_like(gaussian_noise)
-    filtered_noise = np.zeros_like(gaussian_noise)
+    shaped_noise = np.zeros_like(gaussian_noise)
     rirs = np.zeros_like(gaussian_noise)
 
     # envelope is in linear scale, not quadratic, therefore decay rates halve, 
@@ -77,39 +76,24 @@ def shaped_wgn( t_vals: NDArray,
         random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
         if n_bands > 1:
-            
-            # get the energy of the impulse response in each band
-            ir_octave_filter = octave_filtering([],
-                                                fs,
-                                                f_bands,
-                                                ir_len=ir_len,
-                                                get_filter_ir=True)
-            band_energy = sum(ir_octave_filter**2, 0)
             # fitler the random sequence in frequency to extract the band
-            filtered_noise[:, :, i_slope, :] = octave_filtering(
+            gaussian_noise[:, :, i_slope, :] = octave_filtering(
                 random_sequence[..., 0], 
                 fs, 
                 f_bands,
-                ir_len=ir_len)
+                ir_len=ir_len,
+                compensate_filter_energy=True)
 
             for i_band in range(n_bands):
                 # filtered gaussian noise, weighted by envelope in current band
-                gaussian_noise[:, :, i_slope, i_band] = np.einsum(
-                    'nt, nt -> nt', filtered_noise[:, :, i_slope, i_band],
+                shaped_noise[..., i_slope, i_band] = np.einsum(
+                    'nt, nt -> nt', gaussian_noise[..., i_slope, i_band],
                     envelopes[..., i_band])
-                # amplitudes weighted by the filter's energy in the band
-                envelope_a[:, :, i_slope, i_band] = np.sqrt(
-                    np.expand_dims(a_vals_envelope[:, i_slope, i_band], axis=-1) /
-                    band_energy[i_band])
-                rirs[:, :, i_slope,
-                                i_band] = gaussian_noise[:, :, i_slope,
-                                                        i_band] * envelope_a[:, :,
-                                                                                i_slope,
-                                                                                i_band]
+                rirs[:, :, i_slope, i_band] = shaped_noise[..., i_slope, i_band] * a_vals_envelope[..., i_slope, i_band]
         else:
 
             # shape the random sequence and apply the envelope
-            rirs[:, :, i_slope, :] = np.einsum(
+            rirs[..., i_slope, :] = np.einsum(
                 'ntb, nb -> ntb', random_sequence * envelopes,
                 a_vals_envelope[:, i_slope, :])
 
