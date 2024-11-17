@@ -26,6 +26,39 @@ def discard_last_n_percent(edc, n_percent: float):
 
     return out
 
+def slope_param_shape_check(t_vals: NDArray, 
+                            a_vals: NDArray, 
+                            f_bands: Optional[ArrayLike]):
+    
+    """
+    Check and adjust the shape of t_vals and a_vals for slope parameter calculation.
+
+    Parameters:
+    t_vals (NDArray): Decay time values array.
+    a_vals (NDArray): Amplitude values array.
+    f_bands (Optional, ArrayLike): Frequency bands array, if applicable.
+
+    Returns:
+    tuple: Adjusted t_vals, a_vals, and the number of bands.
+    """
+
+    if len(t_vals.shape) < 3:
+        t_vals = np.reshape(
+            t_vals,
+            (*t_vals.shape, *tuple([1 for d in range(3 - len(t_vals.shape))])))
+        a_vals = np.reshape(
+            a_vals,
+            (*a_vals.shape, *tuple([1 for d in range(3 - len(a_vals.shape))])))
+        
+    if f_bands is not None:
+        assert t_vals.shape[-1] == len(
+            f_bands
+        ), 'Mismatch in number of bands. t_vals should have appropriate dimensions.'
+        n_bands = len(f_bands)
+    else:
+        n_bands = 1  # broadband
+
+    return t_vals, a_vals, n_bands
 
 def db(x: ArrayLike,
        is_squared: bool = False,
@@ -90,25 +123,26 @@ def schroeder_backward_int(rir: NDArray, normalize: bool = True):
 def decay_kernel(envelope_t: Union[float, ArrayLike],
                  time: ArrayLike,
                  fs: float,
-                 normalise_envelope: bool = False,
+                 normalize_envelope: bool = False,
                  add_noise: bool = True) -> NDArray:
     """
-    Decay kernel for the exponential envelope
+    Decay kernel for the exponential envelope. Accepts only one frequncy band at a time.
     Args:
         envelope_t: the T60 values (doubled)
         time (ArrayLike): time vector
         fs (float): sampling rate
-        normalise_envelope (bool): whether to normalise the energy of the envelope to 1
+        normalize_envelope (bool): whether to normalise the energy of the envelope to 1
         add_noise (bool): whether to add noise to the decay kernel
     Returns:
         NDArray: exp(-t/tau) exponential decay kernel, or exp(-t/tau) + n(t) with noise
     """
+    assert len(envelope_t.shape) <= 2, 'Only one frequency band is accepted'
 
     tau_vals = np.log(10**6) / envelope_t
     exponential = np.exp(-np.einsum('nb,t->ntb', tau_vals, time))
 
     # normalise the kernel to have unit energy
-    if normalise_envelope:
+    if normalize_envelope:
         exponential = np.einsum('ntb, nb -> ntb', exponential,
                                 np.sqrt((1 - np.exp(-2 * tau_vals / fs))))
     # calculate noise
@@ -190,7 +224,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
         envelopes[:, :, i_slope, :] = decay_kernel(envelope_t,
                                                    time,
                                                    fs,
-                                                   normalise_envelope=True,
+                                                   normalize_envelope=True,
                                                    add_noise=False)
 
     est_level = np.zeros((num_rirs, n_slopes, n_bands), dtype=float)
@@ -229,37 +263,59 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
 def octave_filtering(input_signal: ArrayLike,
                      fs: float,
                      f_bands: List,
-                     get_filter=False):
+                     ir_len: Optional[int],
+                     order: int = 5,
+                     get_filter_ir: bool = False,
+                     compensate_filter_energy: bool = False) -> NDArray:
+    """
+    Apply an octave bandpass filter to the input signal.
+
+    Parameters:
+    input_signal (np.ndarray): The input signal to be filtered.
+    fs (float): The sampling frequency of the input signal.
+    f_bands (List): List of frequency bands for filtering.
+    ir_len (Optional[int]): Length of the impulse response of the filters.
+    order (int, optional): The order of the filter. Default is 5.
+    get_filter_ir (bool, optional): Whether to get the filter impulse response. Default is False.
+
+    Returns:
+    np.ndarray: The filtered signal.
+    """
     num_bands = len(f_bands)
     
-    if get_filter:
-        out_bands = np.zeros((max(input_signal.shape), num_bands))
+    if get_filter_ir:
+        if ir_len is None:
+            ir_len = fs
+        out_bands = np.zeros((ir_len, num_bands))
     else: 
         out_bands = np.zeros((*input_signal.shape, num_bands))          
-    for b_idx in range(num_bands):
-        if f_bands[b_idx] == 0:
-            f_cutoff = (1 / np.sqrt(1.5)) * f_bands[b_idx + 1]
-            z, p, k = butter(5, f_cutoff / (fs / 2), output='zpk')
-        elif f_bands[b_idx] == fs / 2:
-            f_cutoff = np.sqrt(1.5) * f_bands[b_idx - 1]
-            z, p, k = butter(5,
+    for i_band in range(num_bands):
+        if f_bands[i_band] == 0:
+            f_cutoff = (1 / np.sqrt(1.5)) * f_bands[i_band + 1]
+            z, p, k = butter(order, f_cutoff / (fs / 2), output='zpk')
+        elif f_bands[i_band] == fs / 2:
+            f_cutoff = np.sqrt(1.5) * f_bands[i_band - 1]
+            z, p, k = butter(order,
                              f_cutoff / (fs / 2),
                              btype='high',
                              output='zpk')
         else:
-            this_band = f_bands[b_idx] * np.array(
+            this_band = f_bands[i_band] * np.array(
                 [1 / np.sqrt(1.5), np.sqrt(1.5)])
-            z, p, k = butter(5,
+            z, p, k = butter(order,
                              this_band / (fs // 2),
                              btype='band',
                              output='zpk')
 
         sos = zpk2sos(z, p, k)
 
-        w, h = sosfreqz(sos, worN=len(input_signal) // 2 + 1)
-        # somehow this does not work when the input signal is an impulse
-        if get_filter:
-            out_bands[..., b_idx] = np.fft.irfft(h)
+        w, h = sosfreqz(sos, worN=ir_len // 2 + 1)
+
+        if get_filter_ir:
+            out_bands[..., i_band] = np.fft.irfft(h)
         else:
-            out_bands[..., b_idx] = sosfilt(sos, input_signal)
+            out_bands[..., i_band] = sosfilt(sos, input_signal)
+            if compensate_filter_energy:
+                out_bands[..., i_band] = out_bands[..., i_band] / np.sqrt(np.sum(np.fft.irfft(h)**2))
+
     return out_bands
