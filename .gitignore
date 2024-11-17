@@ -3,3 +3,4 @@ __pycache__
 .DS_Store
 data/
 .slope2noise-env/
+/test/output
