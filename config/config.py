@@ -34,12 +34,12 @@ class Config(BaseModel):
     # center frequnecy of the band. If none is provided, it is assumed to have homogeneous attenuation
     f_bands: Optional[
         List[float]] = None  # [125, 250, 500, 1000, 2000, 4000, 8000]
-    # decay time values limits, of num_freq_bands x num_rooms
-    t_vals: List[List[float]] = [[0.1], [3.5]]
-    # amplitude values limits (linear scale)
-    a_vals_lims: List[float] = [10**(-3. / 10), 1]
+    # decay time values (n_rirs x n_slopes x n_bands)
+    t_vals: List[List[List[float]]] = [[[0.5], [3.5]]]
+    # amplitude values (n_rirs x n_slopes x n_bands)
+    a_vals: List[List[List[float]]] = [[[1], [0.01]]]
     # number of common slopes
-    n_slopes: int = 1
+    n_slopes: int = 2
     # type of synthesis to use
     synthesis_type: str = "wgn"  # 'modal' or 'wgn'
     # output directory
@@ -52,25 +52,25 @@ class Config(BaseModel):
     @model_validator(mode="after")
     @classmethod
     def check_config_dict(cls, model):
-        """Check of the room geometry makes sense"""
+        # Check of the room geometry makes sense
         if model.room_geom_config is not None:
             num_rooms = model.room_geom_config.num_rooms
             if num_rooms != model.n_slopes:
                 raise ValueError(
                     "Number of rooms must be equal to the number of slopes")
 
-            if len(model.t_vals) != model.n_slopes:
-                raise ValueError(
-                    "Length of specified T60 must match number of slopes")
-
-            if model.batch_size > model.n_rirs:
-                raise ValueError(
-                    f"Batch size {model.batch_size} should be smaller than the number of rirs {model.n_rirs}"
-                )
-
             num_dims = len(model.room_geom_config.room_dims)
             num_start_coords = len(model.room_geom_config.start_coordinates)
             assert num_dims == num_start_coords == num_rooms, \
                     "Room dimensions and start coordinates must be equal to number of rooms"
 
+        if len(model.t_vals[0]) != model.n_slopes:
+            raise ValueError(
+                "Length of specified T60 must match number of slopes")
+
+        if model.batch_size > model.n_rirs:
+            raise ValueError(
+                f"Batch size {model.batch_size} should be smaller than the number of rirs {model.n_rirs}"
+            )
+        
         return model
