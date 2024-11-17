@@ -103,7 +103,7 @@ if __name__ == "__main__":
         "-c",
         "--config_file",
         default=None,
-        help="Configuration file (YAML) containing diff GFDN \
+        help="Configuration file (YAML) \
         (if none provided the default parameters are loaded).",
     )
 
