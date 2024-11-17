@@ -75,7 +75,7 @@ def rir_synthesis(t_vals: NDArray,
         envelopes = decay_kernel(t_vals_envelope[:,i_slope,...],
                                  time,
                                  fs,
-                                 normalise_envelope=True,
+                                 normalize_envelope=True,
                                  add_noise=False)
 
         if n_bands > 1 and type == 'modal':
@@ -166,7 +166,7 @@ def rir_synthesis(t_vals: NDArray,
                 ir_octave_filter = octave_filtering(impulse,
                                                     fs,
                                                     f_bands,
-                                                    get_filter=True)
+                                                    get_filter_ir=True)
                 band_energy = sum(ir_octave_filter**2, 0)
                 # fitler the random sequence in frequency to extract the band
                 # this is of shape n_rirs x ir_len x n_slopes x n_bands
