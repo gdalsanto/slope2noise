@@ -63,7 +63,7 @@ def main(config_dict: Config):
     for i_band in range(n_bands):
         plt.subplot(3, 3, i_band+1)
         plt.plot(time_axis, 10*np.log10(edc[0,:, i_band]), label='shaped noise')
-        plt.plot(time_axis, 10*np.log10(np.sum(target_edc[0, :, :, i_band], -1)), label='target')
+        plt.plot(time_axis, 10*np.log10(np.sum(target_edc[0, :, :, i_band], -1)), '--', label='target')
         plt.xlabel('Time (s)')
         plt.ylabel('Energy (dB)')
         plt.legend()

@@ -57,8 +57,8 @@ def main(config_dict: Config):
     edc = schroeder_backward_int(rirs, normalize=False)
     time_axis = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs, config_dict.ir_len)
 
-    plt.plot(time_axis, 10*np.log10(np.sum(target_edc[0, :], -1)), label='target EDC')
-    plt.plot(time_axis, 10*np.log10(edc[0, :]), '--', label='generated EDC')
+    plt.plot(time_axis, 10*np.log10(edc[0, :]),label='generated EDC')
+    plt.plot(time_axis, 10*np.log10(np.sum(target_edc[0, :], -1)), '--', label='target EDC')
     plt.xlabel('Time (s)')
     plt.ylabel('Energy Decay')
     plt.legend()
