@@ -131,7 +131,7 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
         envelope_t: the T60 values (doubled)
         time (ArrayLike): time vector
         fs (float): sampling rate
-        normalize_envelope (bool): whether to normalise the energy of the envelope to 1
+        normalize_envelope (bool): whether to normalise the energy to account for shroeder integration
         add_noise (bool): whether to add noise to the decay kernel
     Returns:
         NDArray: exp(-t/tau) exponential decay kernel, or exp(-t/tau) + n(t) with noise
@@ -287,6 +287,7 @@ def octave_filtering(input_signal: ArrayLike,
         if ir_len is None:
             ir_len = fs
         out_bands = np.zeros((ir_len, num_bands))
+        sos_bands = np.zeros((order, 6, num_bands))
     else: 
         out_bands = np.zeros((*input_signal.shape, num_bands))          
     for i_band in range(num_bands):
@@ -313,9 +314,13 @@ def octave_filtering(input_signal: ArrayLike,
 
         if get_filter_ir:
             out_bands[..., i_band] = np.fft.irfft(h)
+            sos_bands[..., i_band] = sos
         else:
             out_bands[..., i_band] = sosfilt(sos, input_signal)
             if compensate_filter_energy:
                 out_bands[..., i_band] = out_bands[..., i_band] / np.sqrt(np.sum(np.fft.irfft(h)**2))
 
-    return out_bands
+    if get_filter_ir:
+        return out_bands, sos_bands
+    else:
+        return out_bands
