@@ -61,7 +61,7 @@ def shaped_wgn( t_vals: NDArray,
     # envelope is in linear scale, not quadratic, therefore decay rates halve, 
     # and T values double
     t_vals_envelope = 2 * np.array(t_vals)
-    a_vals_envelope = np.sqrt(a_vals)
+    a_vals_envelope = np.expand_dims(np.sqrt(a_vals), 1)
 
     for i_slope in range(n_slopes):
 
@@ -95,7 +95,7 @@ def shaped_wgn( t_vals: NDArray,
             # shape the random sequence and apply the envelope
             rirs[..., i_slope, :] = np.einsum(
                 'ntb, nb -> ntb', random_sequence * envelopes,
-                a_vals_envelope[:, i_slope, :])
+                a_vals_envelope[:, 0, i_slope, :])
 
     return rirs, rirs.sum(axis=-1).sum(axis=-1)
 
