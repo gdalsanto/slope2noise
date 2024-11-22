@@ -170,9 +170,16 @@ def gen_dataset(config_dict: Config):
                 f_bands=config_dict.f_bands)
 
         else:
-            a_vals = np.random.uniform(10**(-3 / 10), 10**(0 / 10),
-                                       (num_src_rec_pts, config_dict.n_slopes,
-                                        len(config_dict.f_bands)))
+            if config_dict.f_bands is None:
+                a_vals = np.random.uniform(
+                    10**(-3 / 10), 10**(0 / 10),
+                    (num_src_rec_pts, config_dict.n_slopes))
+            else:
+                a_vals = np.random.uniform(
+                    10**(-3 / 10), 10**(0 / 10),
+                    (num_src_rec_pts, config_dict.n_slopes,
+                     len(config_dict.f_bands)))
+
         # generate the shaped wgn give the slopes and the decay times
         # t_vals of size batch_size x n_slopes X n_bands
         t_vals_expanded = np.repeat(np.array(t_vals)[np.newaxis, ...],
@@ -196,19 +203,21 @@ def gen_dataset(config_dict: Config):
             a_vals = a_vals.reshape(new_shape)
 
         # create instance of CommonSlopes dataclass
-        RIRs = CommonSlopesRIR(room_dims=room_dims,
-                               room_start_coords=start_coordinates,
-                               source_locs=source_loc,
-                               receiver_locs=receiver_locs,
-                               n_slopes=config_dict.n_slopes,
-                               a_vals=a_vals,
-                               t_vals=t_vals,
-                               rir=rirs,
-                               sample_rate=config_dict.fs,
-                               aperture_coords=aperture_coords,
-                               f_bands=config_dict.f_bands,
-                               batch_id=i_batch)
+        RIRs = CommonSlopesRIR(
+            room_dims=room_dims,
+            room_start_coords=start_coordinates,
+            source_locs=source_loc,
+            receiver_locs=receiver_locs,
+            n_slopes=config_dict.n_slopes,
+            a_vals=a_vals,
+            t_vals=t_vals,
+            rir=rirs,
+            sample_rate=config_dict.fs,
+            aperture_coords=config_dict.room_geom_config.aperture_coords,
+            f_bands=config_dict.f_bands,
+            batch_id=i_batch)
         # save it to a pkl file
+        print("I am here")
         with open(
                 os.path.join(config_dict.output_dir,
                              f"bb_wgn_{i_batch:04}.pkl"), "wb") as f:

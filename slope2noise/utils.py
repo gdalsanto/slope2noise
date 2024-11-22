@@ -195,21 +195,6 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
 
     est_level = np.zeros((num_rirs, n_slopes, n_bands), dtype=float)
 
-    # compensate for subband filter energy
-    if f_bands is not None:
-        impulse = np.zeros(rirs.shape[1])
-        impulse[0] = 1.0
-        ir_octave_filter = octave_filtering(impulse,
-                                            fs,
-                                            f_bands,
-                                            get_filter=True)
-        # the input inpulse will not be used in this case actually, get_filter argument is just a quick fix
-        band_energy = np.sum(ir_octave_filter**2, axis=0)
-        band_energy = np.broadcast_to(band_energy.reshape(1, 1, n_bands),
-                                      (num_rirs, n_slopes, n_bands))
-    else:
-        band_energy = np.ones_like(est_level)
-
     error = np.zeros_like(est_level)
 
     for i in range(num_rirs):
@@ -273,6 +258,10 @@ def octave_filtering(input_signal: ArrayLike,
     num_bands = len(f_bands)
     out_bands = np.zeros((*input_signal.shape, num_bands))
     sos = get_bandpass_filters(fs, f_bands)
+    if get_filter:
+        out_bands = np.zeros((max(input_signal.shape), num_bands))
+    else:
+        out_bands = np.zeros((*input_signal.shape, num_bands))
 
     for b_idx in range(num_bands):
         cur_sos = sos[..., b_idx].copy()

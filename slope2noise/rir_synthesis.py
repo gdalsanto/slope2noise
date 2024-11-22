@@ -65,13 +65,14 @@ def rir_synthesis(t_vals: NDArray,
     synthesis_rirs = np.zeros_like(gaussian_noise)
     filtered_noise = np.zeros_like(gaussian_noise)
 
+    # envelope is in linear scale, not quadratic, therefore decay rates halve, and T values double
+    t_vals_envelope = 2 * np.array(t_vals)
+    a_vals_envelope = np.sqrt(a_vals)
+
     for i_slope in range(n_slopes):
 
-        # envelope is in linear scale, not quadratic, therefore decay rates halve, and T values double
-        t_vals_evelope = 2 * np.array(t_vals[:, i_slope, ...])
-
         # generate decay envelope
-        envelopes = decay_kernel(t_vals_evelope,
+        envelopes = decay_kernel(t_vals_envelope[:, i_slope, ...],
                                  time,
                                  fs,
                                  normalise_envelope=True,
@@ -84,11 +85,11 @@ def rir_synthesis(t_vals: NDArray,
                 np.expand_dims(envelopes[:, :, -1], -1)
             ],
                                        axis=-1)
-            a_vals = np.concatenate([
-                np.expand_dims(a_vals[:, :, 0], 1), a_vals,
-                np.expand_dims(a_vals[:, :, -1], 1)
+            a_vals_envelope = np.concatenate([
+                np.expand_dims(a_vals_envelope[:, :, 0], 1), a_vals_envelope,
+                np.expand_dims(a_vals_envelope[:, :, -1], 1)
             ],
-                                    axis=-1)
+                                             axis=-1)
 
         if type == 'modal':
 
@@ -179,8 +180,8 @@ def rir_synthesis(t_vals: NDArray,
                         envelopes[..., i_band])
                     # amplitudes weighted by the filter's energy in the band
                     envelope_a[:, :, i_slope, i_band] = np.sqrt(
-                        np.expand_dims(a_vals[:, i_slope, i_band], axis=-1) /
-                        band_energy[i_band])
+                        np.expand_dims(a_vals_envelope[:, i_slope, i_band],
+                                       axis=-1) / band_energy[i_band])
                     synthesis_rirs[:, :, i_slope,
                                    i_band] = gaussian_noise[:, :, i_slope,
                                                             i_band] * envelope_a[:, :,
