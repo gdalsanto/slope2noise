@@ -72,8 +72,8 @@ def main(config_dict: Config):
                      db(a_vals[src_idx[k], rec_idx[k], :, j], is_squared=True),
                      'kx')
             plt.title(
-                f'RIR at src position {source_locs[src_idx[k], 0]:.2f}, {source_locs[src_idx[k], 1]:.2f}, {source_locs[src_idx[k], 2]:.2f} m,\
-                 rec position {receiver_locs[rec_idx[k], 0]:.2f}, {receiver_locs[rec_idx[k], 1]:.2f}, {receiver_locs[rec_idx[k], 2]:.2f} m' \
+                f'RIR at src position {source_locs[src_idx[k], 0]:.2f}, {source_locs[src_idx[k], 1]:.2f}, {source_locs[src_idx[k], 2]:.2f} m '\
+                + f'rec position {receiver_locs[rec_idx[k], 0]:.2f}, {receiver_locs[rec_idx[k], 1]:.2f}, {receiver_locs[rec_idx[k], 2]:.2f} m '\
                 + f'at frequency band = {f_bands[j]:.0f} Hz'
             )
             plt.show()
@@ -85,7 +85,8 @@ def main(config_dict: Config):
                         geom_config.aperture_coords)
 
     if config_dict.use_multiple_sources:
-        k = np.argwhere(f_bands == 1000)[0]
+        k = np.argwhere(np.isclose(f_bands, 1000))[0][0]
+        print(k)
         for i in range(source_locs.shape[0]):
             room.plot_amps_at_receiver_points(
                 receiver_locs,
