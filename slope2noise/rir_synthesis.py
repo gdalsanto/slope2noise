@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from typing import Union, Optional, Tuple
+from loguru import logger
 
 from .utils import *
 
@@ -70,13 +71,14 @@ def rir_synthesis(t_vals: NDArray,
     a_vals_envelope = np.sqrt(a_vals)
 
     for i_slope in range(n_slopes):
-
         # generate decay envelope
         envelopes = decay_kernel(t_vals_envelope[:, i_slope, ...],
                                  time,
                                  fs,
                                  normalise_envelope=True,
                                  add_noise=False)
+
+        logger.info(f"Done with kernel generation for slope {i_slope+1}")
 
         if n_bands > 1 and type == 'modal':
             # duplicate first and last envelope for residual band
@@ -170,8 +172,12 @@ def rir_synthesis(t_vals: NDArray,
                 band_energy = sum(ir_octave_filter**2, 0)
                 # fitler the random sequence in frequency to extract the band
                 # this is of shape n_rirs x ir_len x n_slopes x n_bands
+                logger.info(
+                    f"Filtering noise into subbands for slope {i_slope+1}")
                 filtered_noise[:, :, i_slope, :] = octave_filtering(
                     random_sequence[..., 0], fs, f_bands)
+                logger.info(
+                    f"Done with octave filtering for slope {i_slope+1}")
 
                 for i_band in range(n_bands):
                     # filtered gaussian noise, weighted by envelope in current band
@@ -187,11 +193,14 @@ def rir_synthesis(t_vals: NDArray,
                                                             i_band] * envelope_a[:, :,
                                                                                  i_slope,
                                                                                  i_band]
+
             else:
 
                 # shape the random sequence and apply the envelope
                 synthesis_rirs[:, :, i_slope, :] = np.einsum(
                     'ntb, nb -> ntb', random_sequence * envelopes,
                     np.sqrt(a_vals[:, i_slope, :]))
+            logger.info(
+                f"Done generating shaped white noise for slope {i_slope+1}")
 
     return synthesis_rirs, synthesis_rirs.sum(axis=-1).sum(axis=-1)

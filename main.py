@@ -217,7 +217,6 @@ def gen_dataset(config_dict: Config):
             f_bands=config_dict.f_bands,
             batch_id=i_batch)
         # save it to a pkl file
-        print("I am here")
         with open(
                 os.path.join(config_dict.output_dir,
                              f"bb_wgn_{i_batch:04}.pkl"), "wb") as f:
