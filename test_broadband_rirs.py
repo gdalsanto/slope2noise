@@ -43,7 +43,7 @@ def main(config_dict: Config):
                    batch_idx_slice, :] = rir_data.a_vals
             rirs[batch_idx_slice[:, None], batch_idx_slice, :] = rir_data.rir
         else:
-            source_locs = rir_data.source_locs
+            source_locs = rir_data.source_locs[np.newaxis, :]
             a_vals[0, batch_idx_slice, :] = rir_data.a_vals
             rirs[0, batch_idx_slice, :] = rir_data.rir
 
