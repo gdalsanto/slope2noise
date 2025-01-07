@@ -150,7 +150,7 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
 def calculate_amplitudes_least_squares(t_vals: NDArray,
                                        fs: float,
                                        rirs: NDArray,
-                                       f_bands: Optional[ArrayLike],
+                                       f_bands: Optional[ArrayLike] = None,
                                        leave_out_ms: float = 50.0,
                                        verbose: bool = False) -> NDArray:
     """

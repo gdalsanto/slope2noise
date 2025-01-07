@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from config.config import Config
 from slope2noise.rooms import RoomGeometry
-from slope2noise.utils import db
+from slope2noise.utils import db, calculate_amplitudes_least_squares
 
 
 def main(config_dict: Config):
@@ -36,6 +36,7 @@ def main(config_dict: Config):
             rir_data = pickle.load(f)
 
         receiver_locs[batch_idx_slice, :] = rir_data.receiver_locs
+        t_vals = np.tile(np.asarray(rir_data.t_vals), (num_receivers, 1, 1))
 
         if config_dict.use_multiple_sources:
             source_locs[batch_idx_slice, :] = rir_data.source_locs
@@ -51,6 +52,8 @@ def main(config_dict: Config):
     num_rirs_to_plot = 10
     rir_idx = np.random.randint(0, rirs.shape[1], size=num_rirs_to_plot)
     src_idx = 0
+    a_vals_est = calculate_amplitudes_least_squares(
+        t_vals, config_dict.fs, np.expand_dims(rirs[src_idx, ...], axis=-1))
     for k in range(num_rirs_to_plot):
         plt.figure()
         edf = np.flipud(
@@ -61,6 +64,8 @@ def main(config_dict: Config):
         plt.plot(time, db(edf, is_squared=True))
         plt.plot(np.zeros(n_slopes),
                  db(a_vals[src_idx, rir_idx[k], :], is_squared=True), 'kx')
+        plt.plot(np.zeros(n_slopes),
+                 db(a_vals_est[rir_idx[k], :], is_squared=True), 'gd')
         plt.title(
             f'RIR at receiver pos {receiver_locs[rir_idx[k], 0]:.2f}, {receiver_locs[rir_idx[k], 1]:.2f}, {receiver_locs[rir_idx[k], 2]:.2f}m '
             +
