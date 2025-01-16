@@ -1,0 +1,4 @@
+n_rirs: 1
+batch_size: 1
+ir_len: 96000
+synthesis_type: "wgn"

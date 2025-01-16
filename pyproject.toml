@@ -1,0 +1,45 @@
+
+[tool.setuptools]
+packages = { find = { include = ["DecayFitNet"] } }
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+[project]
+name = "slope2noise"
+version = "0.0.1"
+authors = [
+  { name="Gloria Dal Santo", email="gloria.dalsanto@aalto.fi" },
+  { name="Orchisama Das", email="orchisama.das@kcl.ac.uk"},
+]
+maintainers = [
+  { name="Gloria Dal Santo", email="gloria.dalsanto@aalto.fi" },
+  { name="Orchisama Das", email="orchisama.das@kcl.ac.uk"},
+]
+description = "Synthesis of room impulse responses using gaussian noise shaping and modal synthesis"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["audio", "signal processing", "room impulse responses", "dataset"]
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "torch",
+    "torchaudio",
+    "numpy",
+    "scipy",
+    "soundfile",
+    "tqdm",
+    "matplotlib",
+    "loguru", 
+    "onnx", 
+    "onnxruntime",
+    "PyYAML",
+    "pydantic",
+    "h5py",
+]
+
+[project.urls]
+Homepage = "https://github.com/gdalsanto/slope2noise"
+Issues = "https://github.com/gdalsanto/slope2noise/issues"

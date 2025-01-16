@@ -7,9 +7,8 @@ from pathlib import Path
 import DecayFitNet.python.toolbox.BayesianDecayAnalysis as bda
 
 from config.config import Config
-from slope2noise.rir_synthesis import rir_synthesis
-from slope2noise.utils import schroeder_backward_int, db, save_audio, calculate_amplitudes_least_squares, octave_filtering
-
+from slope2noise.generate import *
+from slope2noise.utils import *
 
 def main(config_dict: Config):
 
@@ -22,22 +21,19 @@ def main(config_dict: Config):
     # sample energy decay parameters using uniform distribution
     # TODO: ideally t_vals, if frequency dependent, should follow a more realistic distribution
     t_vals = np.random.uniform(
-        config_dict.t_vals[0], config_dict.t_vals[1],
+        0.5, 3,
         (config_dict.n_rirs, config_dict.n_slopes, n_bands))
 
     a_vals = np.random.uniform(
-        config_dict.a_vals_lims[0], config_dict.a_vals_lims[1],
+        10**(-3. / 10), 1,
         (config_dict.n_rirs, config_dict.n_slopes, n_bands))
 
-    rirs_per_slope, rirs = rir_synthesis(
-        t_vals,
-        a_vals,
-        config_dict.f_bands,
-        config_dict.fs,
-        config_dict.ir_len,
-        type=config_dict.synthesis_type,
-        n_modes=config_dict.n_modes,
-    )
+    _, rirs = shaped_wgn(t_vals,
+                        a_vals,
+                        fs=config_dict.fs,
+                        ir_len=config_dict.ir_len,
+                        f_bands=config_dict.f_bands,
+                        )
 
     # save audio files of rirs (only first channel)
     Path(config_dict.output_dir).mkdir(parents=True, exist_ok=True)
@@ -103,7 +99,7 @@ if __name__ == "__main__":
         "-c",
         "--config_file",
         default=None,
-        help="Configuration file (YAML) containing diff GFDN \
+        help="Configuration file (YAML) \
         (if none provided the default parameters are loaded).",
     )
 
