@@ -70,6 +70,18 @@ def rir_synthesis(t_vals: NDArray,
     t_vals_envelope = 2 * np.array(t_vals)
     a_vals_envelope = np.sqrt(a_vals)
 
+    # for energy normalisation of filtered signals
+    if type == 'wgn' and n_bands > 1:
+        # get energy of the filter bank
+        impulse = np.zeros((ir_len))
+        impulse[0] = 1
+        # the input inpulse will not be used in this case actually, get_filter argument is just a quick fix
+        ir_octave_filter = octave_filtering(impulse,
+                                            fs,
+                                            f_bands,
+                                            get_filter=True)
+        band_energy = sum(ir_octave_filter**2, 0)
+
     for i_slope in range(n_slopes):
         # generate decay envelope
         envelopes = decay_kernel(t_vals_envelope[:, i_slope, ...],
@@ -161,16 +173,7 @@ def rir_synthesis(t_vals: NDArray,
             random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
             if n_bands > 1:
-                # get energy of the filter bank
-                impulse = np.zeros((ir_len))
-                impulse[0] = 1
-                # the input inpulse will not be used in this case actually, get_filter argument is just a quick fix
-                ir_octave_filter = octave_filtering(impulse,
-                                                    fs,
-                                                    f_bands,
-                                                    get_filter=True)
-                band_energy = sum(ir_octave_filter**2, 0)
-                # fitler the random sequence in frequency to extract the band
+                # filter the random sequence in frequency to extract the band
                 # this is of shape n_rirs x ir_len x n_slopes x n_bands
                 logger.info(
                     f"Filtering noise into subbands for slope {i_slope+1}")
