@@ -11,7 +11,8 @@ from loguru import logger
 from numpy.typing import NDArray, ArrayLike
 from typing import Optional, List, Union
 from config.config import Config
-from slope2noise.rooms import RoomGeometry, CommonSlopesRIR
+from slope2noise.rooms import RoomGeometry
+from slope2noise.dataclass import CommonSlopesRIR
 from slope2noise.rir_synthesis import rir_synthesis
 
 
