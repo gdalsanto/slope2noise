@@ -1,12 +1,12 @@
 import numpy as np
 import argparse
 import yaml
-import pickle
 import soundfile as sf
 import matplotlib.pyplot as plt
 from pathlib import Path
 from config.config import Config
 from slope2noise.rooms import RoomGeometry
+from slope2noise.dataclass import Slope2NoiseUnpickler
 from slope2noise.utils import db, calculate_amplitudes_least_squares
 
 
@@ -33,7 +33,7 @@ def main(config_dict: Config):
         batch_idx_slice = np.arange(batch_id * batch_size,
                                     (batch_id + 1) * batch_size)
         with open(data_path, 'rb') as f:
-            rir_data = pickle.load(f)
+            rir_data = Slope2NoiseUnpickler(f).load()
 
         receiver_locs[batch_idx_slice, :] = rir_data.receiver_locs
         t_vals = np.tile(np.asarray(rir_data.t_vals), (num_receivers, 1, 1))

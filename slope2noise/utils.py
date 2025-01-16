@@ -285,13 +285,15 @@ def get_bandpass_filters(fs: float, f_bands: List, filter_order: int = 5):
     return sos
 
 
-def octave_filtering(input_signal: ArrayLike,
-                     fs: float,
-                     f_bands: List,
-                     ir_len: Optional[int],
-                     order: int = 5,
-                     get_filter_ir: bool = False,
-                     compensate_filter_energy: bool = False) -> NDArray:
+def octave_filtering(
+    input_signal: ArrayLike,
+    fs: float,
+    f_bands: List,
+    order: int = 5,
+    get_filter_ir: bool = False,
+    compensate_filter_energy: bool = False,
+    ir_len: Optional[int] = None,
+) -> NDArray:
     """
     Apply an octave bandpass filter to the input signal.
 

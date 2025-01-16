@@ -8,6 +8,7 @@ from pathlib import Path
 from config.config import Config
 from slope2noise.rooms import RoomGeometry
 from slope2noise.utils import db, octave_filtering
+from slope2noise.dataclass import Slope2NoiseUnpickler
 
 
 def main(config_dict: Config):
@@ -37,7 +38,7 @@ def main(config_dict: Config):
                                     (batch_id + 1) * batch_size)
 
         with open(data_path, 'rb') as f:
-            rir_data = pickle.load(f)
+            rir_data = Slope2NoiseUnpickler(f).load()
 
         receiver_locs[batch_idx_slice, :] = rir_data.receiver_locs
 
@@ -47,7 +48,7 @@ def main(config_dict: Config):
                    ...] = rir_data.a_vals
             rirs[batch_idx_slice[:, None], batch_idx_slice, ...] = rir_data.rir
         else:
-            source_locs = rir_data.source_locs
+            source_locs = rir_data.source_locs[np.newaxis, ...]
             a_vals[0, batch_idx_slice, ...] = rir_data.a_vals
             rirs[0, batch_idx_slice, ...] = rir_data.rir
 
@@ -55,11 +56,19 @@ def main(config_dict: Config):
     num_rirs_to_plot = 1
     rec_idx = np.random.randint(0, num_receivers, size=num_rirs_to_plot)
     src_idx = np.random.randint(0, num_sources, size=num_rirs_to_plot)
+
     time = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
                        config_dict.ir_len)
 
     for k in range(num_rirs_to_plot):
-        cur_rir = rirs[src_idx[k], rec_idx[k], :]
+        if config_dict.use_multiple_sources:
+            cur_rir = rirs[src_idx[k], rec_idx[k], :]
+            cur_avals = a_vals[src_idx[k], rec_idx[k], ...]
+        else:
+            cur_rir = rirs[0, rec_idx[k], :]
+            cur_avals = a_vals[0, rec_idx[k], ...]
+            src_idx[k] = 0
+
         # this is of shape ir_len x n_bands
         filtered_rir = octave_filtering(cur_rir, fs, f_bands)
         for j in range(n_bands):
@@ -68,8 +77,7 @@ def main(config_dict: Config):
                 np.cumsum(np.flipud(filtered_rir[:, j]**2), axis=-1))
             plt.plot(time, db(filtered_rir[:, j]))
             plt.plot(time, db(edf, is_squared=True))
-            plt.plot(np.zeros(n_slopes),
-                     db(a_vals[src_idx[k], rec_idx[k], :, j], is_squared=True),
+            plt.plot(np.zeros(n_slopes), db(cur_avals[:, j], is_squared=True),
                      'kx')
             plt.title(
                 f'RIR at src position {source_locs[src_idx[k], 0]:.2f}, {source_locs[src_idx[k], 1]:.2f}, {source_locs[src_idx[k], 2]:.2f} m '\
@@ -86,7 +94,6 @@ def main(config_dict: Config):
 
     if config_dict.use_multiple_sources:
         k = np.argwhere(np.isclose(f_bands, 1000))[0][0]
-        print(k)
         for i in range(source_locs.shape[0]):
             room.plot_amps_at_receiver_points(
                 receiver_locs,
