@@ -11,7 +11,7 @@ class Slope2NoiseUnpickler(pickle.Unpickler):
         """Find the correct class in the submodule given a module name"""
         if module == "slope2noise.rooms":
             # Adjust the module path here if needed
-            module = "slope2noise.slope2noise.dataclass"
+            module = "slope2noise.dataclass"
         return super().find_class(module, name)
 
 
