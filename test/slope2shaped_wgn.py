@@ -16,9 +16,11 @@ def main(config_dict: Config):
     # sample energy decay parameters using uniform distribution
     t_vals = np.array(config_dict.t_vals)
     a_vals = np.array(config_dict.a_vals)
+    n_vals = np.array(config_dict.n_vals)
     n_rirs, n_slopes, n_bands = t_vals.shape    
     rirs, _ = shaped_wgn(t_vals,    
                         a_vals,
+                        n_vals,
                         fs=config_dict.fs,
                         ir_len=config_dict.ir_len,
                         f_bands=config_dict.f_bands,

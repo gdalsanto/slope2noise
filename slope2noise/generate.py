@@ -26,6 +26,7 @@ def decay_curve(t_vals: NDArray,
 
 def shaped_wgn(t_vals: NDArray,
                a_vals: NDArray,
+               n_vals: NDArray,
                fs: float,
                ir_len: int,
                f_bands: Optional[ArrayLike] = None) -> Tuple[NDArray, NDArray]:
@@ -48,6 +49,8 @@ def shaped_wgn(t_vals: NDArray,
     assert len(a_vals.shape) == len(
         t_vals.shape
     ) <= 3, 'Incorrect dimension for a_vals. Must be the same as t_vals.'
+    assert len(n_vals.shape) == len(
+        t_vals.shape) - 1 <= 2, 'Incorrect dimension for n_vals. Must be the same be either  [n_rir x n_bands] or [n_rir].'
 
     # expand dimensions if necessary
     t_vals, a_vals, n_bands = slope_param_shape_check(t_vals, a_vals, f_bands)
@@ -56,7 +59,7 @@ def shaped_wgn(t_vals: NDArray,
     time = np.linspace(0, (ir_len - 1) / fs, ir_len)  # time arrray
 
     # initialize output arrays
-    gaussian_noise = np.zeros((n_rirs, ir_len, n_slopes, n_bands))
+    gaussian_noise = np.zeros((n_rirs, ir_len, n_slopes + 1, n_bands))
     shaped_noise = np.zeros_like(gaussian_noise)
     rirs = np.zeros_like(gaussian_noise)
 
@@ -64,22 +67,25 @@ def shaped_wgn(t_vals: NDArray,
     # and T values double
     t_vals_envelope = 2 * np.array(t_vals)
     a_vals_envelope = np.expand_dims(np.sqrt(a_vals), 1)
+    n_vals_envelope = ir_len*n_vals
 
-    for i_slope in range(n_slopes):
-
+    for i_slope in range(n_slopes + 1):
+        # NOTE: last slope index is interpreted as noise term
         # generate decay envelope
-        envelopes = decay_kernel(t_vals_envelope[:, i_slope, ...],
-                                 time,
-                                 fs,
-                                 normalize_envelope=True,
-                                 add_noise=False)
+        if i_slope < n_slopes:
+            envelopes = decay_kernel(t_vals_envelope[:, i_slope, ...],
+                                    time,
+                                    fs,
+                                    normalize_envelope=True,
+                                    add_noise=False)
+        
         logger.info(f"Done with kernel generation for slope {i_slope+1}")
 
         # generate random sequence of Gaussian noise
         random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
         if n_bands > 1:
-            # fitler the random sequence in frequency to extract the band
+            # filter the random sequence in frequency to extract the band
             # this is of shape n_rirs x ir_len x n_slopes x n_bands
 
             logger.info(f"Filtering noise into subbands for slope {i_slope+1}")
@@ -93,19 +99,36 @@ def shaped_wgn(t_vals: NDArray,
 
             for i_band in range(n_bands):
                 # filtered gaussian noise, weighted by envelope in current band
-                shaped_noise[..., i_slope, i_band] = np.einsum(
-                    'nt, nt -> nt', gaussian_noise[..., i_slope, i_band],
-                    envelopes[..., i_band])
-                rirs[:, :, i_slope,
-                     i_band] = shaped_noise[..., i_slope,
-                                            i_band] * a_vals_envelope[...,
-                                                                      i_slope,
-                                                                      i_band]
+                if i_slope < n_slopes:
+                    shaped_noise[..., i_slope, i_band] = np.einsum(
+                        'nt, nt -> nt', gaussian_noise[..., i_slope, i_band],
+                        envelopes[..., i_band])
+                    rirs[:, :, i_slope,
+                        i_band] = shaped_noise[..., i_slope,
+                                                i_band] * a_vals_envelope[...,
+                                                                        i_slope,
+                                                                        i_band]
+                else:
+                    shaped_noise[..., i_slope, i_band] = np.einsum(
+                        'nt, nt -> nt', gaussian_noise[..., i_slope, i_band],
+                        np.tile(np.linspace(1, 1 / ir_len, ir_len), (n_rirs, 1)))
+                    rirs[:, :, i_slope,
+                        i_band] = shaped_noise[..., i_slope,
+                                            i_band] * n_vals_envelope[...,
+                                                                    i_band]                   
         else:
             # shape the random sequence and apply the envelope
-            rirs[...,
-                 i_slope, :] = np.einsum('ntb, nb -> ntb',
-                                         random_sequence * envelopes,
-                                         a_vals_envelope[:, 0, i_slope, :])
+            if i_slope < n_slopes:
+                rirs[...,
+                    i_slope, :] = np.einsum('ntb, nb -> ntb',
+                                            random_sequence * envelopes,
+                                            a_vals_envelope[:, 0, i_slope, :])
+            else:
+                rirs[...,
+                    i_slope, :] = np.einsum('ntb, nb -> ntb',
+                                            random_sequence * np.tile(np.linspace(1, 1 / ir_len, ir_len), (n_rirs, 1)),
+                                            n_vals_envelope)                
+            
+    # add noise term
 
     return rirs, rirs.sum(axis=-1).sum(axis=-1)

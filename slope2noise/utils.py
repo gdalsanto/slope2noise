@@ -124,7 +124,7 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
                  time: ArrayLike,
                  fs: float,
                  normalize_envelope: bool = False,
-                 add_noise: bool = True) -> NDArray:
+                 add_noise: bool = False) -> NDArray:
     """
     Decay kernel for the exponential envelope. Accepts only one frequncy band at a time.
     Args:
@@ -132,7 +132,7 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
         time (ArrayLike): time vector
         fs (float): sampling rate
         normalize_envelope (bool): whether to normalise the energy to account for shroeder integration
-        add_noise (bool): whether to add noise to the decay kernel
+        add_noise (bool): whether to add noise to the decay kernel (use it only if you're modelling only one slope)
     Returns:
         NDArray: exp(-t/tau) exponential decay kernel, or exp(-t/tau) + n(t) with noise
     """

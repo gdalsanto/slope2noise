@@ -38,6 +38,8 @@ class Config(BaseModel):
     t_vals: List[List[List[float]]] = [[[0.5], [3.5]]]
     # amplitude values (n_rirs x n_slopes x n_bands)
     a_vals: List[List[List[float]]] = [[[1], [0.01]]]
+    # noise values (n_rirs x n_bands)
+    n_vals: List[List[float]] = [[0.2]]
     # number of common slopes
     n_slopes: int = 2
     # type of synthesis to use
