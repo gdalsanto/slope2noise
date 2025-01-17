@@ -26,10 +26,9 @@ def discard_last_n_percent(edc, n_percent: float):
 
     return out
 
-def slope_param_shape_check(t_vals: NDArray, 
-                            a_vals: NDArray, 
+
+def slope_param_shape_check(t_vals: NDArray, a_vals: NDArray,
                             f_bands: Optional[ArrayLike]):
-    
     """
     Check and adjust the shape of t_vals and a_vals for slope parameter calculation.
 
@@ -49,7 +48,7 @@ def slope_param_shape_check(t_vals: NDArray,
         a_vals = np.reshape(
             a_vals,
             (*a_vals.shape, *tuple([1 for d in range(3 - len(a_vals.shape))])))
-        
+
     if f_bands is not None:
         assert t_vals.shape[-1] == len(
             f_bands
@@ -59,6 +58,7 @@ def slope_param_shape_check(t_vals: NDArray,
         n_bands = 1  # broadband
 
     return t_vals, a_vals, n_bands
+
 
 def db(x: ArrayLike,
        is_squared: bool = False,
@@ -145,12 +145,12 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
     if normalize_envelope:
         exponential = np.einsum('ntb, nb -> ntb', exponential,
                                 np.sqrt((1 - np.exp(-2 * tau_vals / fs))))
-    # calculate noise
-    ir_len = len(time)
-    noise = np.linspace(1, 1 / ir_len, ir_len)
 
     # construct the decay kernel
     if add_noise:
+        # calculate noise
+        ir_len = len(time)
+        noise = np.linspace(1, 1 / ir_len, ir_len)
         return np.concatenate((exponential, noise), axis=0)
     else:
         return exponential
@@ -184,7 +184,7 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
 def calculate_amplitudes_least_squares(t_vals: NDArray,
                                        fs: float,
                                        rirs: NDArray,
-                                       f_bands: Optional[ArrayLike],
+                                       f_bands: Optional[ArrayLike] = None,
                                        leave_out_ms: float = 50.0,
                                        verbose: bool = False) -> NDArray:
     """
@@ -260,13 +260,40 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
     return est_amps
 
 
-def octave_filtering(input_signal: ArrayLike,
-                     fs: float,
-                     f_bands: List,
-                     ir_len: Optional[int],
-                     order: int = 5,
-                     get_filter_ir: bool = False,
-                     compensate_filter_energy: bool = False) -> NDArray:
+def get_bandpass_filters(fs: float, f_bands: List, filter_order: int = 5):
+    """Return bandpass filters with centre frequencies at f_bands in SOS format"""
+    num_bands = len(f_bands)
+    sos = np.zeros((filter_order, 6, num_bands), dtype=np.float64)
+    for b_idx in range(num_bands):
+        if f_bands[b_idx] == 0:
+            f_cutoff = (1 / np.sqrt(1.5)) * f_bands[b_idx + 1]
+            z, p, k = butter(filter_order, f_cutoff / (fs / 2), output='zpk')
+        elif f_bands[b_idx] == fs / 2:
+            f_cutoff = np.sqrt(1.5) * f_bands[b_idx - 1]
+            z, p, k = butter(filter_order,
+                             f_cutoff / (fs / 2),
+                             btype='high',
+                             output='zpk')
+        else:
+            this_band = f_bands[b_idx] * np.array(
+                [1 / np.sqrt(1.5), np.sqrt(1.5)])
+            z, p, k = butter(filter_order,
+                             this_band / (fs // 2),
+                             btype='band',
+                             output='zpk')
+        sos[..., b_idx] = zpk2sos(z, p, k)
+    return sos
+
+
+def octave_filtering(
+    input_signal: ArrayLike,
+    fs: float,
+    f_bands: List,
+    order: int = 5,
+    get_filter_ir: bool = False,
+    compensate_filter_energy: bool = False,
+    ir_len: Optional[int] = None,
+) -> NDArray:
     """
     Apply an octave bandpass filter to the input signal.
 
@@ -282,43 +309,30 @@ def octave_filtering(input_signal: ArrayLike,
     np.ndarray: The filtered signal.
     """
     num_bands = len(f_bands)
-    
+    if ir_len is None:
+        ir_len = len(input_signal)
+
     if get_filter_ir:
-        if ir_len is None:
-            ir_len = fs
         out_bands = np.zeros((ir_len, num_bands))
         sos_bands = np.zeros((order, 6, num_bands))
-    else: 
-        out_bands = np.zeros((*input_signal.shape, num_bands))          
-    for i_band in range(num_bands):
-        if f_bands[i_band] == 0:
-            f_cutoff = (1 / np.sqrt(1.5)) * f_bands[i_band + 1]
-            z, p, k = butter(order, f_cutoff / (fs / 2), output='zpk')
-        elif f_bands[i_band] == fs / 2:
-            f_cutoff = np.sqrt(1.5) * f_bands[i_band - 1]
-            z, p, k = butter(order,
-                             f_cutoff / (fs / 2),
-                             btype='high',
-                             output='zpk')
-        else:
-            this_band = f_bands[i_band] * np.array(
-                [1 / np.sqrt(1.5), np.sqrt(1.5)])
-            z, p, k = butter(order,
-                             this_band / (fs // 2),
-                             btype='band',
-                             output='zpk')
+    else:
+        out_bands = np.zeros((*input_signal.shape, num_bands))
 
-        sos = zpk2sos(z, p, k)
+    sos = get_bandpass_filters(fs, f_bands)
 
-        w, h = sosfreqz(sos, worN=ir_len // 2 + 1)
+    for b_idx in range(num_bands):
+        cur_sos = sos[..., b_idx].copy()
+        w, h = sosfreqz(cur_sos, worN=ir_len // 2 + 1)
 
+        # somehow this does not work when the input signal is an impulse
         if get_filter_ir:
-            out_bands[..., i_band] = np.fft.irfft(h)
-            sos_bands[..., i_band] = sos
+            out_bands[..., b_idx] = np.fft.irfft(h)
+            sos_bands[..., b_idx] = cur_sos
         else:
-            out_bands[..., i_band] = sosfilt(sos, input_signal)
+            out_bands[..., b_idx] = sosfilt(cur_sos, input_signal)
             if compensate_filter_energy:
-                out_bands[..., i_band] = out_bands[..., i_band] / np.sqrt(np.sum(np.fft.irfft(h)**2))
+                out_bands[..., b_idx] = out_bands[..., b_idx] / np.sqrt(
+                    np.sum(np.fft.irfft(h)**2))
 
     if get_filter_ir:
         return out_bands, sos_bands

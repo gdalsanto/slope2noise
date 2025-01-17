@@ -3,7 +3,7 @@ from numpy.typing import NDArray, ArrayLike
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 from .utils import db
 
@@ -313,6 +313,94 @@ class RoomGeometry():
                         linestyle='-')
         return ax
 
+    def plot_edc_error_at_receiver_points(
+        self,
+        rec_pos: NDArray,
+        source_pos: ArrayLike,
+        edc_error: NDArray,
+        scatter_plot: bool = True,
+        title: Optional[str] = None,
+        cur_freq_hz: Optional[float] = 1000,
+        save_path: Optional[str] = None,
+    ):
+        """Plot the MSE EDC error at different receiver points"""
+
+        x_rec = rec_pos[:, 0]
+        y_rec = rec_pos[:, 1]
+
+        # set axis limits
+        boundaries_list = [[
+            a + b for a, b in zip(sublist1, sublist2)
+        ] for sublist1, sublist2 in zip(self.room_dims, self.room_start_coord)]
+
+        x_lim = max(lst[0] for lst in boundaries_list)
+        y_lim = max(lst[1] for lst in boundaries_list)
+
+        fig, cur_ax = plt.subplots(1, 1, figsize=(6, 4))
+        fig.tight_layout()
+
+        if not scatter_plot:
+            # Create a grid for the surface
+            num_samps = 1000
+            x_lin = np.linspace(0, x_lim, num_samps)
+            y_lin = np.linspace(0, y_lim, num_samps)
+            x_mesh, y_mesh = np.meshgrid(x_lin, y_lin)
+
+            # Create a mask for values within the limits (so that outside the boundaries the amps are zero)
+            mask = []
+            combined_mask = np.array([])
+            for i in range(self.num_rooms):
+                cur_mask = (x_mesh >= self.room_start_coord[i][0]) & (x_mesh <= self.room_dims[i][0] + self.room_start_coord[i][0]) & \
+                       (y_mesh >= self.room_start_coord[i][1]) & (y_mesh <= self.room_dims[i][1] + self.room_start_coord[i][1])
+                if combined_mask.size == 0:
+                    combined_mask = cur_mask
+                else:
+                    combined_mask = np.logical_or(combined_mask, cur_mask)
+
+        if scatter_plot:
+            im = cur_ax.scatter(x_rec,
+                                y_rec,
+                                c=db(edc_error, is_squared=True, min_value=0))
+            # Set the limits for all axes
+            cur_ax.set_xlim(0, x_lim + 0.5)
+            cur_ax.set_ylim(0, y_lim + 0.5)
+        else:
+            edc_error_interp = griddata((x_rec, y_rec),
+                                        edc_error, (x_mesh, y_mesh),
+                                        method='cubic')  # Interpolate z value
+            # Set values outside the limits to 0
+            edc_error_interp[~combined_mask] = 0  # Apply the mask
+            im = cur_ax.imshow(db(edc_error_interp, is_squared=True),
+                               extent=(0, x_lim, 0, y_lim),
+                               origin='lower',
+                               vmin=0,
+                               cmap='viridis')
+        fig.colorbar(im, ax=cur_ax, orientation='vertical')
+        cur_ax.scatter(source_pos[0],
+                       source_pos[1],
+                       color='red',
+                       marker='x',
+                       s=50)
+        # Labels and title
+
+        cur_ax.set_xlabel('X axis')
+        cur_ax.set_ylabel('Y axis')
+        if cur_freq_hz is not None:
+            cur_ax.set_title(f'{cur_freq_hz:.0f} Hz EDC error')
+        else:
+            cur_ax.set_title(f'Broadband EDC error')
+        cur_ax = self.draw_boundaries(cur_ax)
+
+        # Show the plot
+        if title is not None:
+            plt.suptitle(title)
+        fig.subplots_adjust(hspace=0.3)
+        fig.tight_layout()
+        if save_path is not None:
+            plt.savefig(save_path)
+        plt.show()
+        return fig
+
     def plot_amps_at_receiver_points(self,
                                      rec_pos: NDArray,
                                      source_pos: ArrayLike,
@@ -320,7 +408,8 @@ class RoomGeometry():
                                      scatter_plot: bool = True,
                                      title: Optional[str] = None,
                                      cur_freq_hz: Optional[float] = 1000,
-                                     save_path: Optional[str] = None):
+                                     save_path: Optional[str] = None,
+                                     error_plot: bool = False):
         """
         Plot the amplitudes of the different slopes at specified receiver points.
         Args:
@@ -329,7 +418,7 @@ class RoomGeometry():
             scatter_plot (bool): whether to plot the discrete amplitudes, 
                                  or interpolate them to be continuous functions of space
             cur_freq_hz (optional (float)): band centre frequency in Hz
-
+            error_plot (bool): whether we are plotting amplitudes or their mismatch error
         """
         x_rec = rec_pos[:, 0]
         y_rec = rec_pos[:, 1]
@@ -386,6 +475,7 @@ class RoomGeometry():
                 im = cur_ax.imshow(db(amps_interp, is_squared=True),
                                    extent=(0, x_lim, 0, y_lim),
                                    origin='lower',
+                                   vmin=0 if error_plot else -60,
                                    cmap='viridis')
             fig.colorbar(im, ax=cur_ax, orientation='vertical')
             cur_ax.scatter(source_pos[0],
@@ -397,9 +487,11 @@ class RoomGeometry():
 
             cur_ax.set_xlabel('X axis')
             cur_ax.set_ylabel('Y axis')
-            cur_ax.set_title(
-                f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1} at receiver points'
-            )
+            # if cur_freq_hz is not None:
+            #     cur_ax.set_title(
+            #         f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1}')
+            # else:
+            #     cur_ax.set_title(f'Broadband amplitudes for slope = {i+1}')
             cur_ax = self.draw_boundaries(cur_ax)
 
         # Show the plot
@@ -410,5 +502,4 @@ class RoomGeometry():
         if save_path is not None:
             plt.savefig(save_path)
         plt.show()
-
-
+        return fig

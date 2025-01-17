@@ -9,7 +9,7 @@ class RoomGeometryConfig(BaseModel):
     num_rooms: int
     room_dims: List[List]
     start_coordinates: List[List]
-    source_pos: List
+    source_pos: Optional[List] = None
     aperture_coords: Optional[List[List[Tuple]]] = None
 
 
@@ -48,6 +48,8 @@ class Config(BaseModel):
     amp_gen_config: AmpGenerationConfig = AmpGenerationConfig()
     # room geometry of the coupled space
     room_geom_config: Optional[RoomGeometryConfig] = None
+    # whether to use a single source, or multiple sources
+    use_multiple_sources: bool = False
 
     @model_validator(mode="after")
     @classmethod
