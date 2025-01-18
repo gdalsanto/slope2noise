@@ -1,4 +1,5 @@
 import numpy as np
+import pyfar as pf
 from numpy.typing import NDArray, ArrayLike
 from typing import Union, List, Optional
 from scipy.signal import butter, zpk2sos, sosfreqz, sosfilt, fftconvolve
@@ -285,15 +286,14 @@ def get_bandpass_filters(fs: float, f_bands: List, filter_order: int = 5):
     return sos
 
 
-def octave_filtering(
-    input_signal: ArrayLike,
-    fs: float,
-    f_bands: List,
-    order: int = 5,
-    get_filter_ir: bool = False,
-    compensate_filter_energy: bool = False,
-    ir_len: Optional[int] = None,
-) -> NDArray:
+def octave_filtering(input_signal: ArrayLike,
+                     fs: float,
+                     f_bands: List,
+                     order: int = 5,
+                     get_filter_ir: bool = False,
+                     compensate_filter_energy: bool = False,
+                     ir_len: Optional[int] = None,
+                     use_pyfar_filterbank: Optional[bool] = False) -> NDArray:
     """
     Apply an octave bandpass filter to the input signal.
 
@@ -304,6 +304,7 @@ def octave_filtering(
     ir_len (Optional[int]): Length of the impulse response of the filters.
     order (int, optional): The order of the filter. Default is 5.
     get_filter_ir (bool, optional): Whether to get the filter impulse response. Default is False.
+    use_pyfar_filterbank (bool, optional): Whether to use pyfar's reconstructing FIR filterbank
 
     Returns:
     np.ndarray: The filtered signal.
@@ -318,23 +319,60 @@ def octave_filtering(
     else:
         out_bands = np.zeros((*input_signal.shape, num_bands))
 
-    sos = get_bandpass_filters(fs, f_bands)
+    if use_pyfar_filterbank:
+        pf_freqs, _ = pf.dsp.filter.fractional_octave_frequencies(
+            num_fractions=1, frequency_range=(f_bands[0], f_bands[-1]))
+        assert np.allclose(np.array(f_bands),
+                           pf_freqs), "centre frequencies don't match"
+        subband_filters, _ = pf.dsp.filter.reconstructing_fractional_octave_bands(
+            None,
+            num_fractions=1,
+            frequency_range=(f_bands[0], f_bands[-1]),
+            sampling_rate=fs,
+        )
 
-    for b_idx in range(num_bands):
-        cur_sos = sos[..., b_idx].copy()
-        w, h = sosfreqz(cur_sos, worN=ir_len // 2 + 1)
+        for b_idx in range(num_bands):
 
-        # somehow this does not work when the input signal is an impulse
+            impulse_response = fftconvolve(
+                np.r_[1.0, np.zeros(ir_len - 1)],
+                subband_filters.coefficients[b_idx, :],
+                mode='same')
+
+            if get_filter_ir:
+                out_bands[..., b_idx] = impulse_response
+            else:
+                cur_filters = np.repeat(
+                    subband_filters.coefficients[b_idx, :][np.newaxis, ...],
+                    input_signal.shape[0],
+                    axis=0)
+
+                out_bands[..., b_idx] = fftconvolve(input_signal,
+                                                    cur_filters,
+                                                    mode='same')
+
         if get_filter_ir:
-            out_bands[..., b_idx] = np.fft.irfft(h)
-            sos_bands[..., b_idx] = cur_sos
+            return out_bands, subband_filters.coefficients
         else:
-            out_bands[..., b_idx] = sosfilt(cur_sos, input_signal)
-            if compensate_filter_energy:
-                out_bands[..., b_idx] = out_bands[..., b_idx] / np.sqrt(
-                    np.sum(np.fft.irfft(h)**2))
+            return out_bands
 
-    if get_filter_ir:
-        return out_bands, sos_bands
     else:
-        return out_bands
+        sos = get_bandpass_filters(fs, f_bands)
+
+        for b_idx in range(num_bands):
+            cur_sos = sos[..., b_idx].copy()
+            w, h = sosfreqz(cur_sos, worN=ir_len // 2 + 1)
+
+            # somehow this does not work when the input signal is an impulse
+            if get_filter_ir:
+                out_bands[..., b_idx] = np.fft.irfft(h)
+                sos_bands[..., b_idx] = cur_sos
+            else:
+                out_bands[..., b_idx] = sosfilt(cur_sos, input_signal)
+                if compensate_filter_energy:
+                    out_bands[...,
+                              b_idx] /= np.sqrt(np.sum(np.fft.irfft(h)**2))
+
+        if get_filter_ir:
+            return out_bands, sos_bands
+        else:
+            return out_bands

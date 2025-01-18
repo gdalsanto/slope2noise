@@ -24,11 +24,14 @@ def decay_curve(t_vals: NDArray,
     return a_vals * envelope_kernel
 
 
-def shaped_wgn(t_vals: NDArray,
-               a_vals: NDArray,
-               fs: float,
-               ir_len: int,
-               f_bands: Optional[ArrayLike] = None) -> Tuple[NDArray, NDArray]:
+def shaped_wgn(
+        t_vals: NDArray,
+        a_vals: NDArray,
+        fs: float,
+        ir_len: int,
+        f_bands: Optional[ArrayLike] = None,
+        use_pyfar_filterbank: Optional[bool] = False
+) -> Tuple[NDArray, NDArray]:
     """
     Synthesise RIRs with white noise shaping
 
@@ -38,6 +41,7 @@ def shaped_wgn(t_vals: NDArray,
         ir_len (int): Length of the IR in samples
         f_bands (Optional, ArrayLike): frequency bands in which T60s and amplitudes are specified
         n_modes (Optional, int): number of modes to synthesise if using modal synthesis
+        use_pyfar_filterbank (Optional, bool): whether to use Pyfar's perfect reconstruction octave filterbank
     Returns:
         NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_slopes x n_bands, and summed RIRs of size n_rir x ir_len
     """
@@ -59,6 +63,8 @@ def shaped_wgn(t_vals: NDArray,
     gaussian_noise = np.zeros((n_rirs, ir_len, n_slopes, n_bands))
     shaped_noise = np.zeros_like(gaussian_noise)
     rirs = np.zeros_like(gaussian_noise)
+    # generate random sequence of Gaussian noise
+    random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
     # envelope is in linear scale, not quadratic, therefore decay rates halve,
     # and T values double
@@ -75,9 +81,6 @@ def shaped_wgn(t_vals: NDArray,
                                  add_noise=False)
         logger.info(f"Done with kernel generation for slope {i_slope+1}")
 
-        # generate random sequence of Gaussian noise
-        random_sequence = np.random.randn(n_rirs, ir_len, 1)
-
         if n_bands > 1:
             # fitler the random sequence in frequency to extract the band
             # this is of shape n_rirs x ir_len x n_slopes x n_bands
@@ -88,7 +91,8 @@ def shaped_wgn(t_vals: NDArray,
                 fs,
                 f_bands,
                 ir_len=ir_len,
-                compensate_filter_energy=True)
+                compensate_filter_energy=True,
+                use_pyfar_filterbank=use_pyfar_filterbank)
             logger.info(f"Done with octave filtering for slope {i_slope+1}")
 
             for i_band in range(n_bands):
