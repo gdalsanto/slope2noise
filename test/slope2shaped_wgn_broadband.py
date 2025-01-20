@@ -15,13 +15,12 @@ def main(config_dict: Config):
 
     # sample energy decay parameters using uniform distribution
     t_vals = np.array(config_dict.t_vals)
-
-    a_vals = np.random.uniform(
-        10**(-3. / 10), 1,
-        (config_dict.n_rirs, config_dict.n_slopes, 1))
-
+    a_vals = np.array(config_dict.a_vals)
+    n_vals = np.array(config_dict.n_vals)
+    n_rirs, n_slopes, n_bands = t_vals.shape    
     _, rirs = shaped_wgn(t_vals,
                         a_vals,
+                        n_vals,
                         fs=config_dict.fs,
                         ir_len=config_dict.ir_len,
                         f_bands=config_dict.f_bands,
@@ -51,8 +50,10 @@ def main(config_dict: Config):
     # plot Energy Decay Curves
     target_edc = decay_curve(t_vals[:,:,0], 
                       a_vals[:,:,0], 
+                      n_vals[:,0],
                       fs=config_dict.fs,
-                      ir_len=config_dict.ir_len,)
+                      ir_len=config_dict.ir_len,
+                      add_noise=True)
     
     edc = schroeder_backward_int(rirs, normalize=False)
     time_axis = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs, config_dict.ir_len)

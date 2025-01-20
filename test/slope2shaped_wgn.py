@@ -39,7 +39,7 @@ def main(config_dict: Config):
     A_LS = calculate_amplitudes_least_squares(
         t_vals,
         config_dict.fs,
-        rirs, 
+        rirs,  
         config_dict.f_bands,
         leave_out_ms=50.0,
     )
@@ -50,13 +50,15 @@ def main(config_dict: Config):
     )
 
     # plot Energy Decay Curves
-    target_edc = np.zeros((n_rirs, config_dict.ir_len, n_slopes, n_bands))
+    target_edc = np.zeros((n_rirs, config_dict.ir_len, n_slopes + 1, n_bands))
     edc = np.zeros((n_rirs, config_dict.ir_len, n_bands))
     for i_band in range(n_bands):
         target_edc[..., i_band] = decay_curve(t_vals[:,:,i_band], 
                              a_vals[:,:,i_band],
+                             n_vals[:,i_band],
                              fs=config_dict.fs,
-                             ir_len=config_dict.ir_len,)
+                             ir_len=config_dict.ir_len,
+                             add_noise=True)
     
         edc[..., i_band] = schroeder_backward_int(rirs[...,i_band], normalize=False)
     time_axis = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs, config_dict.ir_len)
@@ -70,7 +72,7 @@ def main(config_dict: Config):
         plt.ylabel('Energy (dB)')
         plt.legend()
         plt.title(f'EDC at {config_dict.f_bands[i_band]} Hz')
-        plt.ylim([-40, 7])
+        plt.ylim([-60, 7])
         plt.xlim([0, 2])
         plt.grid(True)
     plt.savefig('test/output/shaped_wgn.png')
