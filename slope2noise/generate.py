@@ -99,6 +99,8 @@ def shaped_wgn(t_vals: NDArray,
                 f_bands,
                 ir_len=ir_len,
                 compensate_filter_energy=True)
+            # gaussian_noise[:, :, i_slope, :] = gaussian_noise[:, :, i_slope, :] - np.mean(gaussian_noise[:, :, i_slope, :])
+            # gaussian_noise[:, :, i_slope, :] = gaussian_noise[:, :, i_slope, :] / np.std(gaussian_noise[:, :, i_slope, :])
             logger.info(f"Done with octave filtering for slope {i_slope+1}")
 
             for i_band in range(n_bands):
