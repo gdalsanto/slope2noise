@@ -150,8 +150,10 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
     if add_noise:
         # calculate noise
         ir_len = len(time)
-        noise = np.linspace(1, 1 / ir_len, ir_len)
-        return np.concatenate((exponential, noise), axis=0)
+        noise = np.linspace(ir_len, 0, ir_len)
+        noise = np.expand_dims(noise, axis=(0, -1))
+        noise = np.tile(noise, (exponential.shape[0], 1, 1)) # repeat noise along all rirs
+        return np.concatenate((exponential, noise), axis=-1)
     else:
         return exponential
 

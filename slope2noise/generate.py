@@ -8,6 +8,7 @@ from .utils import *
 
 def decay_curve(t_vals: NDArray,
                 a_vals: NDArray,
+                n_vals: NDArray,
                 fs: float,
                 ir_len: int,
                 add_noise: bool = False) -> Tuple[NDArray, NDArray]:
@@ -20,6 +21,9 @@ def decay_curve(t_vals: NDArray,
                                    fs,
                                    normalize_envelope=False,
                                    add_noise=add_noise)
+    if add_noise:
+        # concatenate noise term to a_vals
+        a_vals = np.concatenate((a_vals, np.expand_dims(n_vals/ir_len, axis=-1)), axis=-1)
 
     return a_vals * envelope_kernel
 
@@ -67,7 +71,7 @@ def shaped_wgn(t_vals: NDArray,
     # and T values double
     t_vals_envelope = 2 * np.array(t_vals)
     a_vals_envelope = np.expand_dims(np.sqrt(a_vals), 1)
-    n_vals_envelope = ir_len*n_vals
+    n_vals_envelope = -np.sqrt(n_vals/ir_len)
 
     for i_slope in range(n_slopes + 1):
         # NOTE: last slope index is interpreted as noise term
@@ -109,11 +113,8 @@ def shaped_wgn(t_vals: NDArray,
                                                                         i_slope,
                                                                         i_band]
                 else:
-                    shaped_noise[..., i_slope, i_band] = np.einsum(
-                        'nt, nt -> nt', gaussian_noise[..., i_slope, i_band],
-                        np.tile(np.linspace(1, 1 / ir_len, ir_len), (n_rirs, 1)))
                     rirs[:, :, i_slope,
-                        i_band] = shaped_noise[..., i_slope,
+                        i_band] = gaussian_noise[..., i_slope,
                                             i_band] * n_vals_envelope[...,
                                                                     i_band]                   
         else:
@@ -126,8 +127,7 @@ def shaped_wgn(t_vals: NDArray,
             else:
                 rirs[...,
                     i_slope, :] = np.einsum('ntb, nb -> ntb',
-                                            random_sequence * np.tile(np.linspace(1, 1 / ir_len, ir_len), (n_rirs, 1)),
-                                            n_vals_envelope)                
+                                            random_sequence,  n_vals_envelope)                
             
     # add noise term
 
