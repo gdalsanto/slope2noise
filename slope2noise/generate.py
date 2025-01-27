@@ -80,6 +80,8 @@ def shaped_wgn(
                                  normalize_envelope=True,
                                  add_noise=False)
         logger.info(f"Done with kernel generation for slope {i_slope+1}")
+        # generate random sequence of Gaussian noise
+        random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
         if n_bands > 1:
             # fitler the random sequence in frequency to extract the band
