@@ -29,12 +29,15 @@ def decay_curve(t_vals: NDArray,
     return a_vals * envelope_kernel
 
 
-def shaped_wgn(t_vals: NDArray,
-               a_vals: NDArray,
-               n_vals: NDArray,
-               fs: float,
-               ir_len: int,
-               f_bands: Optional[ArrayLike] = None) -> Tuple[NDArray, NDArray]:
+def shaped_wgn(
+        t_vals: NDArray,
+        a_vals: NDArray,
+        fs: float,
+        ir_len: int,
+        f_bands: Optional[ArrayLike] = None,
+        n_vals: Optional[NDArray] = None,
+        use_pyfar_filterbank: Optional[bool] = False
+) -> Tuple[NDArray, NDArray]:
     """
     Synthesise RIRs with white noise shaping
 
@@ -44,6 +47,7 @@ def shaped_wgn(t_vals: NDArray,
         ir_len (int): Length of the IR in samples
         f_bands (Optional, ArrayLike): frequency bands in which T60s and amplitudes are specified
         n_modes (Optional, int): number of modes to synthesise if using modal synthesis
+        use_pyfar_filterbank (Optional, bool): whether to use Pyfar's perfect reconstruction octave filterbank
     Returns:
         NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_slopes x n_bands, and summed RIRs of size n_rir x ir_len
     """
@@ -68,14 +72,18 @@ def shaped_wgn(t_vals: NDArray,
     gaussian_noise = np.zeros((n_rirs, ir_len, n_slopes + 1, n_bands))
     shaped_noise = np.zeros_like(gaussian_noise)
     rirs = np.zeros_like(gaussian_noise)
+    # generate random sequence of Gaussian noise
+    random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
     # envelope is in linear scale, not quadratic, therefore decay rates halve,
     # and T values double
     t_vals_envelope = 2 * np.array(t_vals)
     a_vals_envelope = np.expand_dims(np.sqrt(a_vals), 1)
-    n_vals_envelope = -np.sqrt(n_vals / ir_len)
+    if n_vals is not None:
+        n_vals_envelope = -np.sqrt(n_vals / ir_len)
+    loop_range = n_slopes if n_vals is None else n_slopes + 1
 
-    for i_slope in range(n_slopes + 1):
+    for i_slope in range(loop_range):
         # NOTE: last slope index is interpreted as noise term
         # generate decay envelope
         if i_slope < n_slopes:
@@ -86,7 +94,6 @@ def shaped_wgn(t_vals: NDArray,
                                      add_noise=False)
 
         logger.info(f"Done with kernel generation for slope {i_slope+1}")
-
         # generate random sequence of Gaussian noise
         random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
@@ -100,9 +107,8 @@ def shaped_wgn(t_vals: NDArray,
                 fs,
                 f_bands,
                 ir_len=ir_len,
-                compensate_filter_energy=True)
-            # gaussian_noise[:, :, i_slope, :] = gaussian_noise[:, :, i_slope, :] - np.mean(gaussian_noise[:, :, i_slope, :])
-            # gaussian_noise[:, :, i_slope, :] = gaussian_noise[:, :, i_slope, :] / np.std(gaussian_noise[:, :, i_slope, :])
+                compensate_filter_energy=True,
+                use_pyfar_filterbank=use_pyfar_filterbank)
             logger.info(f"Done with octave filtering for slope {i_slope+1}")
 
             for i_band in range(n_bands):
