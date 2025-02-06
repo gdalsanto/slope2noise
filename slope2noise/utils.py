@@ -102,9 +102,14 @@ def ms_to_samps(ms: Union[float, ArrayLike],
         return samp.astype(np.int32)
 
 
-def schroeder_backward_int(rir: NDArray, normalize: bool = True):
+def schroeder_backward_int(rir: NDArray,
+                           normalize: bool = True,
+                           discard_last_zeros: bool = True):
 
-    out = discard_trailing_zeros(rir)
+    if discard_last_zeros:
+        out = discard_trailing_zeros(rir)
+    else:
+        out = rir.copy()
 
     # Backwards integral
     out = np.flip(out, axis=-1)
@@ -116,7 +121,7 @@ def schroeder_backward_int(rir: NDArray, normalize: bool = True):
         norm_vals = np.max(out, axis=-1, keepdims=True)  # per channel
         out = out / norm_vals
 
-        return out, norm_vals
+        return out
     else:
         return out
 
@@ -153,7 +158,8 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
         ir_len = len(time)
         noise = np.linspace(ir_len, 0, ir_len)
         noise = np.expand_dims(noise, axis=(0, -1))
-        noise = np.tile(noise, (exponential.shape[0], 1, 1)) # repeat noise along all rirs
+        noise = np.tile(
+            noise, (exponential.shape[0], 1, 1))  # repeat noise along all rirs
         return np.concatenate((exponential, noise), axis=-1)
     else:
         return exponential
@@ -288,7 +294,7 @@ def get_bandpass_filters(fs: float, f_bands: List, filter_order: int = 5):
     return sos
 
 
-def octave_filtering(input_signal: ArrayLike,
+def octave_filtering(input_signal: Union[ArrayLike, NDArray],
                      fs: float,
                      f_bands: List,
                      order: int = 5,
@@ -300,7 +306,7 @@ def octave_filtering(input_signal: ArrayLike,
     Apply an octave bandpass filter to the input signal.
 
     Parameters:
-    input_signal (np.ndarray): The input signal to be filtered.
+    input_signal (np.ndarray): The input signal to be filtered, of shape n_rir x ir_len, or ir_len
     fs (float): The sampling frequency of the input signal.
     f_bands (List): List of frequency bands for filtering.
     ir_len (Optional[int]): Length of the impulse response of the filters.
@@ -343,14 +349,21 @@ def octave_filtering(input_signal: ArrayLike,
             if get_filter_ir:
                 out_bands[..., b_idx] = impulse_response
             else:
-                cur_filters = np.repeat(
-                    subband_filters.coefficients[b_idx, :][np.newaxis, ...],
-                    input_signal.shape[0],
-                    axis=0)
+                if input_signal.ndim > 1:
+                    cur_filters = np.repeat(
+                        subband_filters.coefficients[b_idx, ...][np.newaxis,
+                                                                 ...],
+                        input_signal.shape[0],
+                        axis=0)
+                else:
+                    cur_filters = subband_filters.coefficients[b_idx, ...]
 
                 out_bands[..., b_idx] = fftconvolve(input_signal,
                                                     cur_filters,
                                                     mode='same')
+                if compensate_filter_energy:
+                    out_bands[..., b_idx] /= np.sqrt(
+                        np.sum(subband_filters.coefficients[b_idx, ...]**2))
 
         if get_filter_ir:
             return out_bands, subband_filters.coefficients
