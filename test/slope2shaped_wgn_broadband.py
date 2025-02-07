@@ -17,14 +17,16 @@ def main(config_dict: Config):
     t_vals = np.array(config_dict.t_vals)
     a_vals = np.array(config_dict.a_vals)
     n_vals = np.array(config_dict.n_vals)
-    n_rirs, n_slopes, n_bands = t_vals.shape    
-    _, rirs = shaped_wgn(t_vals,
-                        a_vals,
-                        n_vals,
-                        fs=config_dict.fs,
-                        ir_len=config_dict.ir_len,
-                        f_bands=config_dict.f_bands,
-                        )
+    n_rirs, n_slopes, n_bands = t_vals.shape
+    _, rirs = shaped_wgn(
+        t_vals,
+        a_vals,
+        fs=config_dict.fs,
+        ir_len=config_dict.ir_len,
+        f_bands=config_dict.f_bands,
+        n_vals=n_vals,
+    )
+    edc = schroeder_backward_int(rirs, normalize=False)
 
     # test with Bayesian Decay Analysis
     BDA = bda.BayesianDecayAnalysis(config_dict.n_slopes,
@@ -34,40 +36,64 @@ def main(config_dict: Config):
     T_BDA, A_BDA, N = edc_param[0], edc_param[1], edc_param[2]
 
     # estimates amplitudes with least squares
-    A_LS = calculate_amplitudes_least_squares(
-        t_vals,
-        config_dict.fs,
-        rirs[..., np.newaxis],
-        config_dict.f_bands,
-        leave_out_ms=50.0,
-    )
+    A_LS = calculate_amplitudes_least_squares(t_vals,
+                                              config_dict.fs,
+                                              rirs[..., np.newaxis],
+                                              config_dict.f_bands,
+                                              leave_out_ms=50.0,
+                                              verbose=True)
 
     print(
-        f"Estimated \nT_BDA: {np.squeeze(np.round(T_BDA, 3))}, A_BDA: {np.squeeze(np.round(A_BDA, 3))} \nA_LS: {np.squeeze(np.round(A_LS[0], 3))}\n" \
+        f"Estimated \nT_BDA: {np.squeeze(np.round(T_BDA, 3))}, \nA_BDA: {np.squeeze(np.round(A_BDA, 3))} \nA_LS: {np.squeeze(np.round(A_LS[0], 3))}\n" \
         f"Reference \nT: {np.squeeze(np.round(t_vals[0, :, :], 3))}, A: {np.squeeze(np.round(a_vals[0, :, :], 3))}"
     )
 
     # plot Energy Decay Curves
-    target_edc = decay_curve(t_vals[:,:,0], 
-                      a_vals[:,:,0], 
-                      n_vals[:,0],
-                      fs=config_dict.fs,
-                      ir_len=config_dict.ir_len,
-                      add_noise=True)
-    
-    edc = schroeder_backward_int(rirs, normalize=False)
-    time_axis = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs, config_dict.ir_len)
+    target_edc = decay_curve(t_vals[:, :, 0],
+                             a_vals[:, :, 0],
+                             n_vals[:, 0],
+                             fs=config_dict.fs,
+                             ir_len=config_dict.ir_len,
+                             add_noise=True)
 
-    plt.plot(time_axis, 10*np.log10(edc[0, :]),label='generated EDC')
-    plt.plot(time_axis, 10*np.log10(np.sum(target_edc[0, :], -1)), '--', label='target EDC')
+    # get RIRs with LS amplitude estimation
+    _, rirs_ls = shaped_wgn(
+        t_vals,
+        A_LS[:, 1:, :],
+        fs=config_dict.fs,
+        ir_len=config_dict.ir_len,
+        f_bands=config_dict.f_bands,
+        n_vals=A_LS[:, 0, :],
+    )
+    edc_ls = schroeder_backward_int(rirs_ls, normalize=False)
+
+    time_axis = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
+                            config_dict.ir_len)
+    plt.plot(time_axis,
+             10 * np.log10(np.sum(target_edc[0, :], -1)),
+             '--',
+             label='target EDC')
+    plt.plot(time_axis,
+             10 * np.log10(edc[0, :]),
+             label='generated EDC from target params')
+    plt.plot(time_axis,
+             10 * np.log10(edc_ls[0, :]),
+             label='generated EDC from LS amp estimation')
+
+    plt.plot(np.zeros(n_slopes + 1),
+             20 * np.log10(np.squeeze(A_LS)),
+             '*',
+             label='LS estimated amplitudes')
     plt.xlabel('Time (s)')
     plt.ylabel('Energy Decay')
     plt.legend()
     plt.title(f'Gaussian noise shaping')
     plt.ylim([-40, 5])
-    plt.xlim([0, 2])
+    plt.xlim([-0.01, 2])
     plt.grid(True)
+    plt.show()
     plt.savefig(os.path.join('test/output', 'shaped_wgn_broadband.png'))
+
 
 if __name__ == "__main__":
 

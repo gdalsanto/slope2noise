@@ -137,6 +137,4 @@ def shaped_wgn(
                      i_slope, :] = np.einsum('ntb, nb -> ntb', random_sequence,
                                              n_vals_envelope)
 
-    # add noise term
-
     return rirs, rirs.sum(axis=-1).sum(axis=-1)

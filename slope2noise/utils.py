@@ -3,6 +3,7 @@ import pyfar as pf
 from numpy.typing import NDArray, ArrayLike
 from typing import Union, List, Optional
 from scipy.signal import butter, zpk2sos, sosfreqz, sosfilt, fftconvolve
+from scipy.optimize import lsq_linear
 import soundfile as sf
 from loguru import logger
 
@@ -103,6 +104,7 @@ def ms_to_samps(ms: Union[float, ArrayLike],
 
 
 def schroeder_backward_int(rir: NDArray,
+                           time_axis: int = -1,
                            normalize: bool = True,
                            discard_last_zeros: bool = True):
 
@@ -112,15 +114,14 @@ def schroeder_backward_int(rir: NDArray,
         out = rir.copy()
 
     # Backwards integral
-    out = np.flip(out, axis=-1)
-    out = np.cumsum(out**2, axis=-1)
-    out = np.flip(out, axis=-1)
+    out = np.flip(out, axis=time_axis)
+    out = np.cumsum(out**2, axis=time_axis)
+    out = np.flip(out, axis=time_axis)
 
     if normalize:
         # Normalize to 1
-        norm_vals = np.max(out, axis=-1, keepdims=True)  # per channel
-        out = out / norm_vals
-
+        norm_vals = np.max(out, axis=time_axis, keepdims=True)  # per channel
+        out = out / norm_vals if not np.isnan(norm_vals).any() else out
         return out
     else:
         return out
@@ -194,7 +195,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                                        fs: float,
                                        rirs: NDArray,
                                        f_bands: Optional[ArrayLike] = None,
-                                       leave_out_ms: float = 50.0,
+                                       leave_out_ms: float = 10.0,
                                        verbose: bool = False) -> NDArray:
     """
     Calculate amplitudes (one for each slope) using linear least squares
@@ -207,7 +208,8 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                              RIR to prevent bad conditioning
         verbose (bool): if true, the error in subbands is displayed
     Returns:
-        NDArray: estimated amplitudes of shape n_rir x n_slopes x n_bands
+        NDArray: estimated amplitudes of shape n_rir x n_slopes + 1 x n_bands.
+                The first slope contains the noise floor.
     """
 
     if rirs.ndim == 2:
@@ -223,40 +225,65 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
 
     # find the exponential decay envelope for each slope
     # the decay kernel sum_{k=1}^K exp(-t/tau_k) of size n_rir x ir_len x n_slopes x n_bands
-    envelopes = np.zeros((num_rirs, ir_len, n_slopes, n_bands))
+    envelopes = np.zeros((num_rirs, ir_len, n_slopes + 1, n_bands))
+
+    # the first slope contains the noise term, and has kernel L - t
+    psi_0 = 0.5 * (ir_len - np.arange(ir_len)) / fs
+    envelopes[:, :, 0, :] = np.tile(psi_0[np.newaxis, :, np.newaxis],
+                                    (num_rirs, 1, 1, n_bands))
+
     for i_slope in range(n_slopes):
         # envelope is in linear scale, not quadratic, therefore decay rates halve, and T values double
-        envelope_t = 2 * np.array(t_vals[:, i_slope, ...])
+        envelope_t = np.array(t_vals[:, i_slope, ...])
         if num_rirs == 1:
             envelope_t = envelope_t.reshape(1, n_bands)
         # generate decay envelopes from t_vals
-        envelopes[:, :, i_slope, :] = decay_kernel(envelope_t,
-                                                   time,
-                                                   fs,
-                                                   normalize_envelope=True,
-                                                   add_noise=False)
+        envelopes[:, :,
+                  i_slope + 1, :] = decay_kernel(envelope_t,
+                                                 time,
+                                                 fs,
+                                                 normalize_envelope=False,
+                                                 add_noise=False)
 
-    est_level = np.zeros((num_rirs, n_slopes, n_bands), dtype=float)
-
+    est_level = np.zeros((num_rirs, n_slopes + 1, n_bands), dtype=float)
     error = np.zeros_like(est_level)
 
     for i in range(num_rirs):
         for k in range(n_bands):
-            cond_number = np.linalg.cond(np.abs(envelopes[i, :, :, k]))
+
+            cond_number = np.linalg.cond(np.abs(envelopes[i, :, 1:, k]))
             if np.abs(cond_number) > 1e6:
                 logger.warning(
-                    f'Condition number in band {f_bands[k]:.3f} Hz is {db(cond_number):.3f} dB, skipping amplitude calculation'
+                    f'Condition number in band {k} is {db(cond_number):.3f} dB, skipping amplitude calculation'
                 )
                 continue
 
-            # psi_k(t)
             cur_rir = rirs[i, :, k]
-            cur_edc = calculate_energy_envelope(cur_rir, fs, smooth_time_ms=50)
+
+            # calculate EDC of the RIR
+            cur_edc = schroeder_backward_int(cur_rir,
+                                             normalize=False,
+                                             discard_last_zeros=False)
             cur_edc = cur_edc.reshape(ir_len, 1)
+
+            # get the current RIR's envelope
+            cur_envelope = np.zeros((ir_len, n_slopes + 1))
+            cur_envelope[:, 0] = envelopes[i, :, 0, k]
             # psi_k(t) - psi_k(L)
-            cur_envelope = (envelopes[i, :, :, k] - envelopes[i, -1, :, k])
-            assert cur_envelope.shape == (ir_len, n_slopes)
-            cur_level = np.linalg.pinv(cur_envelope) @ (cur_edc)
+            cur_envelope[:, 1:] = (envelopes[i, :, 1:, k] -
+                                   envelopes[i, -1, 1:, k])
+            assert cur_envelope.shape == (ir_len, n_slopes + 1)
+
+            # linear least squares without constraints
+            # cur_level = np.linalg.pinv(cur_envelope) @ (cur_edc)
+
+            # linear least squares with constraints
+            cur_level = lsq_linear(cur_envelope,
+                                   np.squeeze(cur_edc),
+                                   bounds=(np.zeros(n_slopes + 1),
+                                           np.inf * np.ones(n_slopes + 1)),
+                                   lsmr_tol='auto',
+                                   verbose=1)['x'].reshape(n_slopes + 1, 1)
             error[i, :,
                   k] = np.linalg.norm(cur_envelope @ cur_level - cur_edc)**2
             if verbose:
@@ -265,7 +292,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                 )
             est_level[i, :, k] = np.squeeze(cur_level)
 
-    est_amps = est_level**2
+    est_amps = est_level
     return est_amps
 
 
