@@ -3,7 +3,8 @@ import pyfar as pf
 from numpy.typing import NDArray, ArrayLike
 from typing import Union, List, Optional
 from scipy.signal import butter, zpk2sos, sosfreqz, sosfilt, fftconvolve
-from scipy.optimize import lsq_linear
+from scipy.optimize import lsq_linear, least_squares
+from tqdm import tqdm
 import soundfile as sf
 from loguru import logger
 
@@ -105,13 +106,13 @@ def ms_to_samps(ms: Union[float, ArrayLike],
 
 def schroeder_backward_int(rir: NDArray,
                            time_axis: int = -1,
-                           normalize: bool = True,
-                           discard_last_zeros: bool = True):
+                           normalize: bool = False,
+                           discard_last_zeros: bool = False):
 
     if discard_last_zeros:
         out = discard_trailing_zeros(rir)
     else:
-        out = rir.copy()
+        out = rir
 
     # Backwards integral
     out = np.flip(out, axis=time_axis)
@@ -191,12 +192,14 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
     return env
 
 
-def calculate_amplitudes_least_squares(t_vals: NDArray,
-                                       fs: float,
-                                       rirs: NDArray,
-                                       f_bands: Optional[ArrayLike] = None,
-                                       leave_out_ms: float = 10.0,
-                                       verbose: bool = False) -> NDArray:
+def calculate_amplitudes_least_squares(
+        t_vals: NDArray,
+        fs: float,
+        rirs: NDArray,
+        f_bands: Optional[ArrayLike] = None,
+        leave_out_ms: float = 50.0,
+        verbose: bool = False,
+        use_non_linear_ls: bool = True) -> NDArray:
     """
     Calculate amplitudes (one for each slope) using linear least squares
     Args:
@@ -230,7 +233,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
     # the first slope contains the noise term, and has kernel L - t
     psi_0 = 0.5 * (ir_len - np.arange(ir_len)) / fs
     envelopes[:, :, 0, :] = np.tile(psi_0[np.newaxis, :, np.newaxis],
-                                    (num_rirs, 1, 1, n_bands))
+                                    (num_rirs, 1, n_bands))
 
     for i_slope in range(n_slopes):
         # envelope is in linear scale, not quadratic, therefore decay rates halve, and T values double
@@ -248,15 +251,15 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
     est_level = np.zeros((num_rirs, n_slopes + 1, n_bands), dtype=float)
     error = np.zeros_like(est_level)
 
-    for i in range(num_rirs):
+    for i in tqdm(range(num_rirs)):
         for k in range(n_bands):
 
-            cond_number = np.linalg.cond(np.abs(envelopes[i, :, 1:, k]))
-            if np.abs(cond_number) > 1e6:
-                logger.warning(
-                    f'Condition number in band {k} is {db(cond_number):.3f} dB, skipping amplitude calculation'
-                )
-                continue
+            # cond_number = np.linalg.cond(np.abs(envelopes[i, :, 1:, k]))
+            # if np.abs(cond_number) > 1e6:
+            #     logger.warning(
+            #         f'Condition number in band {k} is {db(cond_number):.3f} dB, skipping amplitude calculation'
+            #     )
+            #     continue
 
             cur_rir = rirs[i, :, k]
 
@@ -274,16 +277,31 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                                    envelopes[i, -1, 1:, k])
             assert cur_envelope.shape == (ir_len, n_slopes + 1)
 
-            # linear least squares without constraints
-            # cur_level = np.linalg.pinv(cur_envelope) @ (cur_edc)
+            if use_non_linear_ls:
+                # non-linear least squares minimising error in dB,
+                # same as Georg's implementation
+                residuals = lambda params: (
+                    db(cur_envelope @ params[..., np.newaxis], is_squared=True
+                       ) - db(cur_edc, is_squared=True)).squeeze()
+                params_init = np.r_[1e-10, np.ones(n_slopes)]
+                result = least_squares(residuals,
+                                       params_init,
+                                       bounds=(np.zeros(n_slopes + 1),
+                                               np.r_[1,
+                                                     10 * np.ones(n_slopes)]))
+                cur_level = result.x.reshape(n_slopes + 1, 1)
 
-            # linear least squares with constraints
-            cur_level = lsq_linear(cur_envelope,
-                                   np.squeeze(cur_edc),
-                                   bounds=(np.zeros(n_slopes + 1),
-                                           np.inf * np.ones(n_slopes + 1)),
-                                   lsmr_tol='auto',
-                                   verbose=1)['x'].reshape(n_slopes + 1, 1)
+            else:
+                # linear least squares with constraints
+                cur_level = lsq_linear(cur_envelope,
+                                       np.squeeze(cur_edc),
+                                       bounds=(np.zeros(n_slopes + 1),
+                                               np.r_[1,
+                                                     10 * np.ones(n_slopes)]),
+                                       lsmr_tol='auto',
+                                       verbose=0)['x'].reshape(
+                                           n_slopes + 1, 1)
+
             error[i, :,
                   k] = np.linalg.norm(cur_envelope @ cur_level - cur_edc)**2
             if verbose:
@@ -346,8 +364,8 @@ def octave_filtering(input_signal: Union[ArrayLike, NDArray],
     """
     num_bands = len(f_bands)
     if ir_len is None:
-        ir_len = len(input_signal)
-
+        ir_len = len(
+            input_signal) if input_signal.ndim == 1 else input_signal.shape[-1]
     if get_filter_ir:
         out_bands = np.zeros((ir_len, num_bands))
         sos_bands = np.zeros((order, 6, num_bands))
@@ -377,16 +395,15 @@ def octave_filtering(input_signal: Union[ArrayLike, NDArray],
                 out_bands[..., b_idx] = impulse_response
             else:
                 if input_signal.ndim > 1:
-                    cur_filters = np.repeat(
-                        subband_filters.coefficients[b_idx, ...][np.newaxis,
-                                                                 ...],
-                        input_signal.shape[0],
-                        axis=0)
+                    cur_filters = np.tile(
+                        subband_filters.coefficients[b_idx, :],
+                        (input_signal.shape[0], 1))
                 else:
                     cur_filters = subband_filters.coefficients[b_idx, ...]
 
                 out_bands[..., b_idx] = fftconvolve(input_signal,
                                                     cur_filters,
+                                                    axes=-1,
                                                     mode='same')
                 if compensate_filter_energy:
                     out_bands[..., b_idx] /= np.sqrt(

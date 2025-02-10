@@ -1,7 +1,8 @@
 n_rirs: 1
 batch_size: 1
 ir_len: 96000
-t_vals: [[[0.5], [1.5]]]
-a_vals: [[[2], [0.1]]]
-n_vals:  [[0.15]]
+n_slopes: 3
+t_vals: [[[0.5], [1.5], [0.75]]]
+a_vals: [[[2], [0.1], [0.5]]]
+n_vals:  [[0.015]]
 synthesis_type: "wgn"
