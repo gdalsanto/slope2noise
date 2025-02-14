@@ -292,15 +292,18 @@ def calculate_amplitudes_least_squares(
                 cur_level = result.x.reshape(n_slopes + 1, 1)
 
             else:
+                # linear least squares without constraints
+                cur_level = np.linalg.pinv(cur_envelope) @ cur_edc
+
                 # linear least squares with constraints
-                cur_level = lsq_linear(cur_envelope,
-                                       np.squeeze(cur_edc),
-                                       bounds=(np.zeros(n_slopes + 1),
-                                               np.r_[1,
-                                                     10 * np.ones(n_slopes)]),
-                                       lsmr_tol='auto',
-                                       verbose=0)['x'].reshape(
-                                           n_slopes + 1, 1)
+                # cur_level = lsq_linear(cur_envelope,
+                #                        np.squeeze(cur_edc),
+                #                        bounds=(np.zeros(n_slopes + 1),
+                #                                np.r_[1,
+                #                                      10 * np.ones(n_slopes)]),
+                #                        lsmr_tol='auto',
+                #                        verbose=0)['x'].reshape(
+                #                            n_slopes + 1, 1)
 
             error[i, :,
                   k] = np.linalg.norm(cur_envelope @ cur_level - cur_edc)**2

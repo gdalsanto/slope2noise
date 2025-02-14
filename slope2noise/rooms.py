@@ -374,6 +374,7 @@ class RoomGeometry():
                                extent=(0, x_lim, 0, y_lim),
                                origin='lower',
                                vmin=0,
+                               vmax=3.0,
                                cmap='viridis')
         fig.colorbar(im, ax=cur_ax, orientation='vertical')
         cur_ax.scatter(source_pos[0],
