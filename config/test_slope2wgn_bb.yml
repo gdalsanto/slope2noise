@@ -1,4 +1,5 @@
 n_rirs: 1
+ir_len: 192000
 batch_size: 1
 ir_len: 96000
 t_vals: [[[0.5], [1.5]]]
