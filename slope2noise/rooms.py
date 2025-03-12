@@ -9,20 +9,22 @@ from .utils import db
 
 
 @dataclass
-class Meshgrid():
+class Meshgrid:
     xmesh: NDArray
     ymesh: NDArray
     zmesh: NDArray
 
 
-class RoomGeometry():
+class RoomGeometry:
 
-    def __init__(self,
-                 sample_rate: int,
-                 num_rooms: int,
-                 room_dims: List,
-                 room_start_coord: List,
-                 aperture_coords: Optional[List[List[Tuple]]] = None):
+    def __init__(
+        self,
+        sample_rate: int,
+        num_rooms: int,
+        room_dims: List,
+        room_start_coord: List,
+        aperture_coords: Optional[List[List[Tuple]]] = None,
+    ):
 
         self.sample_rate = sample_rate
         self.num_rooms = num_rooms
@@ -34,26 +36,41 @@ class RoomGeometry():
     @property
     def room_boundaries_2D(self):
         # get (x, y) boundaries of each room
-        return [[[self.room_start_coord[i][0], self.room_start_coord[i][1]],
-                 [
-                     self.room_start_coord[i][0] + self.room_dims[i][0],
-                     self.room_start_coord[i][1]
-                 ],
-                 [
-                     self.room_start_coord[i][0] + self.room_dims[i][0],
-                     self.room_start_coord[i][1] + self.room_dims[i][1]
-                 ],
-                 [
-                     self.room_start_coord[i][0],
-                     self.room_start_coord[i][1] + self.room_dims[i][1]
-                 ]] for i in range(self.num_rooms)]
+        return [
+            [
+                [self.room_start_coord[i][0], self.room_start_coord[i][1]],
+                [
+                    self.room_start_coord[i][0] + self.room_dims[i][0],
+                    self.room_start_coord[i][1],
+                ],
+                [
+                    self.room_start_coord[i][0] + self.room_dims[i][0],
+                    self.room_start_coord[i][1] + self.room_dims[i][1],
+                ],
+                [
+                    self.room_start_coord[i][0],
+                    self.room_start_coord[i][1] + self.room_dims[i][1],
+                ],
+            ]
+            for i in range(self.num_rooms)
+        ]
 
     @property
     def room_midpoint_2D(self):
         # get (x, y) midpoint of each room
-        return [(np.array([self.room_start_coord[i][0], self.room_start_coord[i][1]]) + \
-                   np.array([self.room_start_coord[i][0] + self.room_dims[i][0], self.room_start_coord[i][1] + self.room_dims[i][1]]))/2.0 \
-                   for i in range(self.num_rooms)]
+        return [
+            (
+                np.array([self.room_start_coord[i][0], self.room_start_coord[i][1]])
+                + np.array(
+                    [
+                        self.room_start_coord[i][0] + self.room_dims[i][0],
+                        self.room_start_coord[i][1] + self.room_dims[i][1],
+                    ]
+                )
+            )
+            / 2.0
+            for i in range(self.num_rooms)
+        ]
 
     def get_3D_meshgrid(self, grid_spacing_m: float) -> Meshgrid:
         """
@@ -73,15 +90,18 @@ class RoomGeometry():
             x = np.linspace(
                 self.room_start_coord[nroom][0],
                 self.room_start_coord[nroom][0] + self.room_dims[nroom][0],
-                num_x_points)
+                num_x_points,
+            )
             y = np.linspace(
                 self.room_start_coord[nroom][1],
                 self.room_start_coord[nroom][1] + self.room_dims[nroom][1],
-                num_y_points)
+                num_y_points,
+            )
             z = np.linspace(
                 self.room_start_coord[nroom][2],
                 self.room_start_coord[nroom][2] + self.room_dims[nroom][2],
-                num_z_points)
+                num_z_points,
+            )
             (xm, ym, zm) = np.meshgrid(x, y, z)
             Xcombined = np.concatenate((Xcombined, xm.flatten()))
             Ycombined = np.concatenate((Ycombined, ym.flatten()))
@@ -101,35 +121,30 @@ class RoomGeometry():
 
         # Plot using scatter without any additional data for color
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection="3d")
 
         # Plot the X, Y, Z points
-        ax.scatter(x_flat, y_flat, z_flat, color='b', marker='.')
+        ax.scatter(x_flat, y_flat, z_flat, color="b", marker=".")
 
         # Set the limits for all axes
-        ax.set_xlim(0,
-                    self.room_dims[-1][0] + self.room_start_coord[-1][0] + 0.5)
-        ax.set_ylim(0,
-                    self.room_dims[-1][1] + self.room_start_coord[-1][1] + 0.5)
+        ax.set_xlim(0, self.room_dims[-1][0] + self.room_start_coord[-1][0] + 0.5)
+        ax.set_ylim(0, self.room_dims[-1][1] + self.room_start_coord[-1][1] + 0.5)
         ax.set_zlim(0, self.room_dims[-1][-1] + 0.5)
 
         # Set the viewing angle so the origin is in the front bottom-left corner
         # ax.view_init(elev=90, azim=-90)
 
         # Labels and title
-        ax.set_xlabel('X axis')
-        ax.set_ylabel('Y axis')
-        ax.set_zlabel('Z axis')
-        ax.set_title('3D mesh grid of coupled space')
+        ax.set_xlabel("X axis")
+        ax.set_ylabel("Y axis")
+        ax.set_zlabel("Z axis")
+        ax.set_title("3D mesh grid of coupled space")
 
         # Show the plot
         plt.show()
         return fig
 
-    def sample_interior_points(self,
-                               n_points=1,
-                               i_room=None,
-                               lim=0.1) -> List[float]:
+    def sample_interior_points(self, n_points=1, i_room=None, lim=0.1) -> List[float]:
         """
         Sample a random point in the interior of the room i_room with a minimum distance lim from the walls
         """
@@ -138,33 +153,53 @@ class RoomGeometry():
             i_room = np.random.randint(0, self.num_rooms, size=n_points)
         # Randomly sample a point inside each room's dimensions
         random_x = np.squeeze(
-            np.array([
-                np.random.uniform(self.room_start_coord[i_room[k]][0] + lim,
-                                  self.room_start_coord[i_room[k]][0] +
-                                  self.room_dims[i_room[k]][0] - lim,
-                                  size=1) for k in range(n_points)
-            ]))
+            np.array(
+                [
+                    np.random.uniform(
+                        self.room_start_coord[i_room[k]][0] + lim,
+                        self.room_start_coord[i_room[k]][0]
+                        + self.room_dims[i_room[k]][0]
+                        - lim,
+                        size=1,
+                    )
+                    for k in range(n_points)
+                ]
+            )
+        )
         random_y = np.squeeze(
-            np.array([
-                np.random.uniform(self.room_start_coord[i_room[k]][1] + lim,
-                                  self.room_start_coord[i_room[k]][1] +
-                                  self.room_dims[i_room[k]][1] - lim,
-                                  size=1) for k in range(n_points)
-            ]))
+            np.array(
+                [
+                    np.random.uniform(
+                        self.room_start_coord[i_room[k]][1] + lim,
+                        self.room_start_coord[i_room[k]][1]
+                        + self.room_dims[i_room[k]][1]
+                        - lim,
+                        size=1,
+                    )
+                    for k in range(n_points)
+                ]
+            )
+        )
         random_z = np.squeeze(
-            np.array([
-                np.random.uniform(self.room_start_coord[i_room[k]][2] + lim,
-                                  self.room_start_coord[i_room[k]][2] +
-                                  self.room_dims[i_room[k]][2] - lim,
-                                  size=1) for k in range(n_points)
-            ]))
+            np.array(
+                [
+                    np.random.uniform(
+                        self.room_start_coord[i_room[k]][2] + lim,
+                        self.room_start_coord[i_room[k]][2]
+                        + self.room_dims[i_room[k]][2]
+                        - lim,
+                        size=1,
+                    )
+                    for k in range(n_points)
+                ]
+            )
+        )
         return np.stack((random_x, random_y, random_z), axis=-1)
 
     @staticmethod
-    def get_euclidean_distance(point1: NDArray, point2: NDArray,
-                               ax: int) -> ArrayLike:
+    def get_euclidean_distance(point1: NDArray, point2: NDArray, ax: int) -> ArrayLike:
         """Get the euclidean distance between a set of points"""
-        return np.sqrt(np.sum((point1 - point2)**2, axis=ax))
+        return np.sqrt(np.sum((point1 - point2) ** 2, axis=ax))
 
     @staticmethod
     def point_to_room_distance(P: ArrayLike, room_bounds: List) -> float:
@@ -203,8 +238,7 @@ class RoomGeometry():
 
         def cross_product(A, B, P):
             # Compute the 2D cross product of vectors AB and AP
-            return (B[0] - A[0]) * (P[1] - A[1]) - (B[1] - A[1]) * (P[0] -
-                                                                    A[0])
+            return (B[0] - A[0]) * (P[1] - A[1]) - (B[1] - A[1]) * (P[0] - A[0])
 
         # Extract the four corners and the point
         A, B, C, D = corners
@@ -217,18 +251,21 @@ class RoomGeometry():
         cross4 = cross_product(D, A, P)
 
         # Check if all cross products have the same sign
-        if (cross1 > 0 and cross2 > 0 and cross3 > 0 and cross4 > 0) or \
-           (cross1 < 0 and cross2 < 0 and cross3 < 0 and cross4 < 0):
+        if (cross1 > 0 and cross2 > 0 and cross3 > 0 and cross4 > 0) or (
+            cross1 < 0 and cross2 < 0 and cross3 < 0 and cross4 < 0
+        ):
             return True
         else:
             return False
 
-    def get_amplitude_based_on_position(self,
-                                        rec_pos: NDArray,
-                                        source_pos: ArrayLike,
-                                        mean_amp: Optional[NDArray] = None):
+    def get_amplitude_based_on_position(
+        self,
+        rec_pos: NDArray,
+        source_pos: ArrayLike,
+        mean_amp: Optional[NDArray] = None,
+    ):
         """
-        Get amplitudes corresponding to K common slopes, given the room geometry and the mean 
+        Get amplitudes corresponding to K common slopes, given the room geometry and the mean
         of the amplitude distribution
         Args:
             rec_pos (NDArray): Array of receiver positions of size N x 3
@@ -246,27 +283,40 @@ class RoomGeometry():
         amplitudes = np.zeros((self.num_rooms, num_rec))
 
         dist_from_room = np.zeros((self.num_rooms, num_rec))
-        dist_from_source = RoomGeometry.get_euclidean_distance(np.repeat(
-            source_pos[np.newaxis, :], num_rec, axis=0),
-                                                               rec_pos,
-                                                               ax=1)
+        dist_from_source = RoomGeometry.get_euclidean_distance(
+            np.repeat(source_pos[np.newaxis, :], num_rec, axis=0), rec_pos, ax=1
+        )
 
         point_in_room = np.empty((self.num_rooms, num_rec), dtype=bool)
         for k in range(self.num_rooms):
             # find out which room the receiver is in
-            point_in_room[k, :] = np.array([
-                RoomGeometry.is_point_in_room(self.room_boundaries_2D[k],
-                                              rec_pos_2D[:, i])
-                for i in range(num_rec)
-            ])
+            point_in_room[k, :] = np.array(
+                [
+                    RoomGeometry.is_point_in_room(
+                        self.room_boundaries_2D[k], rec_pos_2D[:, i]
+                    )
+                    for i in range(num_rec)
+                ]
+            )
             # distance of the receivers from the room
-            dist_from_room[k,:] = np.array([RoomGeometry.point_to_room_distance(rec_pos_2D[:, i], \
-                                                               [self.room_start_coord[k][0], self.room_start_coord[k][0] + self.room_dims[k][0],
-                                                                self.room_start_coord[k][1], self.room_start_coord[k][1] + self.room_dims[k][1]]) \
-                                        for i in range(num_rec)])
+            dist_from_room[k, :] = np.array(
+                [
+                    RoomGeometry.point_to_room_distance(
+                        rec_pos_2D[:, i],
+                        [
+                            self.room_start_coord[k][0],
+                            self.room_start_coord[k][0] + self.room_dims[k][0],
+                            self.room_start_coord[k][1],
+                            self.room_start_coord[k][1] + self.room_dims[k][1],
+                        ],
+                    )
+                    for i in range(num_rec)
+                ]
+            )
             # amplitudes depend on 1/r
             amplitudes[k, :] = 1.0 / (
-                np.sqrt(dist_from_room[k, :] * dist_from_source) + 1e-12)
+                np.sqrt(dist_from_room[k, :] * dist_from_source) + 1e-12
+            )
 
         # scale the amplitudes by the mean of the distributions
         for j in range(num_rec):
@@ -283,14 +333,10 @@ class RoomGeometry():
             x_end = self.room_dims[k][0] + self.room_start_coord[k][0]
             y_start = self.room_start_coord[k][1]
             y_end = self.room_dims[k][1] + self.room_start_coord[k][1]
-            ax.plot([x_start, x_end], [y_start, y_start],
-                    color='k',
-                    linestyle='-')
-            ax.plot([x_start, x_start], [y_start, y_end],
-                    color='k',
-                    linestyle='-')
-            ax.plot([x_start, x_end], [y_end, y_end], color='k', linestyle='-')
-            ax.plot([x_end, x_end], [y_start, y_end], color='k', linestyle='-')
+            ax.plot([x_start, x_end], [y_start, y_start], color="k", linestyle="-")
+            ax.plot([x_start, x_start], [y_start, y_end], color="k", linestyle="-")
+            ax.plot([x_start, x_end], [y_end, y_end], color="k", linestyle="-")
+            ax.plot([x_end, x_end], [y_start, y_end], color="k", linestyle="-")
 
         if self.aperture_coords is not None:
 
@@ -299,18 +345,30 @@ class RoomGeometry():
                 cur_ap_coords = self.aperture_coords[k]
                 start_xy = cur_ap_coords[0]
                 end_xy = cur_ap_coords[1]
-                ax.plot([start_xy[0], end_xy[0]], [start_xy[1], start_xy[1]],
-                        color='w',
-                        linestyle='-')
-                ax.plot([start_xy[0], start_xy[0]], [start_xy[1], end_xy[1]],
-                        color='w',
-                        linestyle='-')
-                ax.plot([start_xy[0], end_xy[0]], [end_xy[1], end_xy[1]],
-                        color='w',
-                        linestyle='-')
-                ax.plot([end_xy[0], end_xy[0]], [start_xy[1], end_xy[1]],
-                        color='w',
-                        linestyle='-')
+                ax.plot(
+                    [start_xy[0], end_xy[0]],
+                    [start_xy[1], start_xy[1]],
+                    color="w",
+                    linestyle="-",
+                )
+                ax.plot(
+                    [start_xy[0], start_xy[0]],
+                    [start_xy[1], end_xy[1]],
+                    color="w",
+                    linestyle="-",
+                )
+                ax.plot(
+                    [start_xy[0], end_xy[0]],
+                    [end_xy[1], end_xy[1]],
+                    color="w",
+                    linestyle="-",
+                )
+                ax.plot(
+                    [end_xy[0], end_xy[0]],
+                    [start_xy[1], end_xy[1]],
+                    color="w",
+                    linestyle="-",
+                )
         return ax
 
     def plot_edc_error_at_receiver_points(
@@ -329,9 +387,10 @@ class RoomGeometry():
         y_rec = rec_pos[:, 1]
 
         # set axis limits
-        boundaries_list = [[
-            a + b for a, b in zip(sublist1, sublist2)
-        ] for sublist1, sublist2 in zip(self.room_dims, self.room_start_coord)]
+        boundaries_list = [
+            [a + b for a, b in zip(sublist1, sublist2)]
+            for sublist1, sublist2 in zip(self.room_dims, self.room_start_coord)
+        ]
 
         x_lim = max(lst[0] for lst in boundaries_list)
         y_lim = max(lst[1] for lst in boundaries_list)
@@ -350,45 +409,47 @@ class RoomGeometry():
             mask = []
             combined_mask = np.array([])
             for i in range(self.num_rooms):
-                cur_mask = (x_mesh >= self.room_start_coord[i][0]) & (x_mesh <= self.room_dims[i][0] + self.room_start_coord[i][0]) & \
-                       (y_mesh >= self.room_start_coord[i][1]) & (y_mesh <= self.room_dims[i][1] + self.room_start_coord[i][1])
+                cur_mask = (
+                    (x_mesh >= self.room_start_coord[i][0])
+                    & (x_mesh <= self.room_dims[i][0] + self.room_start_coord[i][0])
+                    & (y_mesh >= self.room_start_coord[i][1])
+                    & (y_mesh <= self.room_dims[i][1] + self.room_start_coord[i][1])
+                )
                 if combined_mask.size == 0:
                     combined_mask = cur_mask
                 else:
                     combined_mask = np.logical_or(combined_mask, cur_mask)
 
         if scatter_plot:
-            im = cur_ax.scatter(x_rec,
-                                y_rec,
-                                c=db(edc_error, is_squared=True, min_value=0))
+            im = cur_ax.scatter(
+                x_rec, y_rec, c=db(edc_error, is_squared=True, min_value=0)
+            )
             # Set the limits for all axes
             cur_ax.set_xlim(0, x_lim + 0.5)
             cur_ax.set_ylim(0, y_lim + 0.5)
         else:
-            edc_error_interp = griddata((x_rec, y_rec),
-                                        edc_error, (x_mesh, y_mesh),
-                                        method='cubic')  # Interpolate z value
+            edc_error_interp = griddata(
+                (x_rec, y_rec), edc_error, (x_mesh, y_mesh), method="cubic"
+            )  # Interpolate z value
             # Set values outside the limits to 0
             edc_error_interp[~combined_mask] = 0  # Apply the mask
-            im = cur_ax.imshow(db(edc_error_interp, is_squared=True),
-                               extent=(0, x_lim, 0, y_lim),
-                               origin='lower',
-                               vmin=0,
-                               cmap='viridis')
-        fig.colorbar(im, ax=cur_ax, orientation='vertical')
-        cur_ax.scatter(source_pos[0],
-                       source_pos[1],
-                       color='red',
-                       marker='x',
-                       s=50)
+            im = cur_ax.imshow(
+                db(edc_error_interp, is_squared=True),
+                extent=(0, x_lim, 0, y_lim),
+                origin="lower",
+                vmin=0,
+                cmap="viridis",
+            )
+        fig.colorbar(im, ax=cur_ax, orientation="vertical")
+        cur_ax.scatter(source_pos[0], source_pos[1], color="red", marker="x", s=50)
         # Labels and title
 
-        cur_ax.set_xlabel('X axis')
-        cur_ax.set_ylabel('Y axis')
+        cur_ax.set_xlabel("X axis")
+        cur_ax.set_ylabel("Y axis")
         if cur_freq_hz is not None:
-            cur_ax.set_title(f'{cur_freq_hz:.0f} Hz EDC error')
+            cur_ax.set_title(f"{cur_freq_hz:.0f} Hz EDC error")
         else:
-            cur_ax.set_title(f'Broadband EDC error')
+            cur_ax.set_title(f"Broadband EDC error")
         cur_ax = self.draw_boundaries(cur_ax)
 
         # Show the plot
@@ -401,21 +462,23 @@ class RoomGeometry():
         plt.show()
         return fig
 
-    def plot_amps_at_receiver_points(self,
-                                     rec_pos: NDArray,
-                                     source_pos: ArrayLike,
-                                     amps: NDArray,
-                                     scatter_plot: bool = True,
-                                     title: Optional[str] = None,
-                                     cur_freq_hz: Optional[float] = 1000,
-                                     save_path: Optional[str] = None,
-                                     error_plot: bool = False):
+    def plot_amps_at_receiver_points(
+        self,
+        rec_pos: NDArray,
+        source_pos: ArrayLike,
+        amps: NDArray,
+        scatter_plot: bool = True,
+        title: Optional[str] = None,
+        cur_freq_hz: Optional[float] = 1000,
+        save_path: Optional[str] = None,
+        error_plot: bool = False,
+    ):
         """
         Plot the amplitudes of the different slopes at specified receiver points.
         Args:
             rec_pos (NDArray): N x 3 array of listener positions in cartesian coordinates
             amps (NDArray): num_rooms x N matrix of amplitudes at specified listener positions
-            scatter_plot (bool): whether to plot the discrete amplitudes, 
+            scatter_plot (bool): whether to plot the discrete amplitudes,
                                  or interpolate them to be continuous functions of space
             cur_freq_hz (optional (float)): band centre frequency in Hz
             error_plot (bool): whether we are plotting amplitudes or their mismatch error
@@ -424,16 +487,15 @@ class RoomGeometry():
         y_rec = rec_pos[:, 1]
 
         # set axis limits
-        boundaries_list = [[
-            a + b for a, b in zip(sublist1, sublist2)
-        ] for sublist1, sublist2 in zip(self.room_dims, self.room_start_coord)]
+        boundaries_list = [
+            [a + b for a, b in zip(sublist1, sublist2)]
+            for sublist1, sublist2 in zip(self.room_dims, self.room_start_coord)
+        ]
 
         x_lim = max(lst[0] for lst in boundaries_list)
         y_lim = max(lst[1] for lst in boundaries_list)
 
-        fig, ax = plt.subplots(self.num_rooms,
-                               1,
-                               figsize=(6, 3 * self.num_rooms))
+        fig, ax = plt.subplots(self.num_rooms, 1, figsize=(6, 3 * self.num_rooms))
         fig.tight_layout()
 
         if not scatter_plot:
@@ -447,8 +509,12 @@ class RoomGeometry():
             mask = []
             combined_mask = np.array([])
             for i in range(self.num_rooms):
-                cur_mask = (x_mesh >= self.room_start_coord[i][0]) & (x_mesh <= self.room_dims[i][0] + self.room_start_coord[i][0]) & \
-                       (y_mesh >= self.room_start_coord[i][1]) & (y_mesh <= self.room_dims[i][1] + self.room_start_coord[i][1])
+                cur_mask = (
+                    (x_mesh >= self.room_start_coord[i][0])
+                    & (x_mesh <= self.room_dims[i][0] + self.room_start_coord[i][0])
+                    & (y_mesh >= self.room_start_coord[i][1])
+                    & (y_mesh <= self.room_dims[i][1] + self.room_start_coord[i][1])
+                )
                 if combined_mask.size == 0:
                     combined_mask = cur_mask
                 else:
@@ -458,35 +524,31 @@ class RoomGeometry():
         for i in range(self.num_rooms):
             cur_ax = ax if self.num_rooms == 1 else ax[i]
             if scatter_plot:
-                im = cur_ax.scatter(x_rec,
-                                    y_rec,
-                                    c=db(amps[i, :],
-                                         is_squared=True,
-                                         min_value=-40))
+                im = cur_ax.scatter(
+                    x_rec, y_rec, c=db(amps[i, :], is_squared=True, min_value=-40)
+                )
                 # Set the limits for all axes
                 cur_ax.set_xlim(0, x_lim + 0.5)
                 cur_ax.set_ylim(0, y_lim + 0.5)
             else:
-                amps_interp = griddata((x_rec, y_rec),
-                                       amps[i, :], (x_mesh, y_mesh),
-                                       method='cubic')  # Interpolate z value
+                amps_interp = griddata(
+                    (x_rec, y_rec), amps[i, :], (x_mesh, y_mesh), method="cubic"
+                )  # Interpolate z value
                 # Set values outside the limits to 0
                 amps_interp[~combined_mask] = 0  # Apply the mask
-                im = cur_ax.imshow(db(amps_interp, is_squared=True),
-                                   extent=(0, x_lim, 0, y_lim),
-                                   origin='lower',
-                                   vmin=0 if error_plot else -60,
-                                   cmap='viridis')
-            fig.colorbar(im, ax=cur_ax, orientation='vertical')
-            cur_ax.scatter(source_pos[0],
-                           source_pos[1],
-                           color='red',
-                           marker='x',
-                           s=50)
+                im = cur_ax.imshow(
+                    db(amps_interp, is_squared=True),
+                    extent=(0, x_lim, 0, y_lim),
+                    origin="lower",
+                    vmin=0 if error_plot else -60,
+                    cmap="viridis",
+                )
+            fig.colorbar(im, ax=cur_ax, orientation="vertical")
+            cur_ax.scatter(source_pos[0], source_pos[1], color="red", marker="x", s=50)
             # Labels and title
 
-            cur_ax.set_xlabel('X axis')
-            cur_ax.set_ylabel('Y axis')
+            cur_ax.set_xlabel("X axis")
+            cur_ax.set_ylabel("Y axis")
             # if cur_freq_hz is not None:
             #     cur_ax.set_title(
             #         f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1}')

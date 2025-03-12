@@ -13,7 +13,8 @@ def save_audio(filepath, x, fs=48000):
 def discard_trailing_zeros(rir):
     # find first non-zero element from back
     last_above_thres = rir.shape[-1] - np.argmax(
-        (np.flip(rir, axis=-1) != 0)).squeeze().astype(int)
+        (np.flip(rir, axis=-1) != 0)
+    ).squeeze().astype(int)
     # discard from that sample onwards
     out = rir[..., :last_above_thres]
     return out
@@ -27,8 +28,9 @@ def discard_last_n_percent(edc, n_percent: float):
     return out
 
 
-def slope_param_shape_check(t_vals: NDArray, a_vals: NDArray,
-                            f_bands: Optional[ArrayLike]):
+def slope_param_shape_check(
+    t_vals: NDArray, a_vals: NDArray, f_bands: Optional[ArrayLike]
+):
     """
     Check and adjust the shape of t_vals and a_vals for slope parameter calculation.
 
@@ -43,16 +45,16 @@ def slope_param_shape_check(t_vals: NDArray, a_vals: NDArray,
 
     if len(t_vals.shape) < 3:
         t_vals = np.reshape(
-            t_vals,
-            (*t_vals.shape, *tuple([1 for d in range(3 - len(t_vals.shape))])))
+            t_vals, (*t_vals.shape, *tuple([1 for d in range(3 - len(t_vals.shape))]))
+        )
         a_vals = np.reshape(
-            a_vals,
-            (*a_vals.shape, *tuple([1 for d in range(3 - len(a_vals.shape))])))
+            a_vals, (*a_vals.shape, *tuple([1 for d in range(3 - len(a_vals.shape))]))
+        )
 
     if f_bands is not None:
         assert t_vals.shape[-1] == len(
             f_bands
-        ), 'Mismatch in number of bands. t_vals should have appropriate dimensions.'
+        ), "Mismatch in number of bands. t_vals should have appropriate dimensions."
         n_bands = len(f_bands)
     else:
         n_bands = 1  # broadband
@@ -60,9 +62,7 @@ def slope_param_shape_check(t_vals: NDArray, a_vals: NDArray,
     return t_vals, a_vals, n_bands
 
 
-def db(x: ArrayLike,
-       is_squared: bool = False,
-       min_value: float = -200) -> ArrayLike:
+def db(x: ArrayLike, is_squared: bool = False, min_value: float = -200) -> ArrayLike:
     """Convert values to decibels.
 
     Args:
@@ -84,8 +84,7 @@ def db(x: ArrayLike,
     return y.clip(min=min_value)
 
 
-def ms_to_samps(ms: Union[float, ArrayLike],
-                fs: float) -> Union[int, ArrayLike]:
+def ms_to_samps(ms: Union[float, ArrayLike], fs: float) -> Union[int, ArrayLike]:
     """
     Convert ms to samples
     Args:
@@ -120,11 +119,13 @@ def schroeder_backward_int(rir: NDArray, normalize: bool = True):
         return out
 
 
-def decay_kernel(envelope_t: Union[float, ArrayLike],
-                 time: ArrayLike,
-                 fs: float,
-                 normalize_envelope: bool = False,
-                 add_noise: bool = False) -> NDArray:
+def decay_kernel(
+    envelope_t: Union[float, ArrayLike],
+    time: ArrayLike,
+    fs: float,
+    normalize_envelope: bool = False,
+    add_noise: bool = False,
+) -> NDArray:
     """
     Decay kernel for the exponential envelope. Accepts only one frequncy band at a time.
     Args:
@@ -136,15 +137,16 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
     Returns:
         NDArray: exp(-t/tau) exponential decay kernel, or exp(-t/tau) + n(t) with noise
     """
-    assert len(envelope_t.shape) <= 2, 'Only one frequency band is accepted'
+    assert len(envelope_t.shape) <= 2, "Only one frequency band is accepted"
 
     tau_vals = np.log(10**6) / envelope_t
-    exponential = np.exp(-np.einsum('nb,t->ntb', tau_vals, time))
+    exponential = np.exp(-np.einsum("nb,t->ntb", tau_vals, time))
 
     # normalise the kernel to have unit energy
     if normalize_envelope:
-        exponential = np.einsum('ntb, nb -> ntb', exponential,
-                                np.sqrt((1 - np.exp(-2 * tau_vals / fs))))
+        exponential = np.einsum(
+            "ntb, nb -> ntb", exponential, np.sqrt((1 - np.exp(-2 * tau_vals / fs)))
+        )
 
     # construct the decay kernel
     if add_noise:
@@ -152,20 +154,23 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
         ir_len = len(time)
         noise = np.linspace(ir_len, 0, ir_len)
         noise = np.expand_dims(noise, axis=(0, -1))
-        noise = np.tile(noise, (exponential.shape[0], 1, 1)) # repeat noise along all rirs
+        noise = np.tile(
+            noise, (exponential.shape[0], 1, 1)
+        )  # repeat noise along all rirs
         return np.concatenate((exponential, noise), axis=-1)
     else:
         return exponential
 
 
-def calculate_energy_envelope(sig: ArrayLike, fs: float,
-                              smooth_time_ms: float) -> ArrayLike:
+def calculate_energy_envelope(
+    sig: ArrayLike, fs: float, smooth_time_ms: float
+) -> ArrayLike:
     """
     Calculate the energy envelope (broadband EDC) of a RIR
     Args:
         sig (ArrayLike): 1D RIR signal
         fs (float): sampling rate
-        smooth_time_ms (float): smoothing window length in ms, 
+        smooth_time_ms (float): smoothing window length in ms,
                                 longer window leads to more smoothing
     """
     staps = ms_to_samps(smooth_time_ms / 2, fs)
@@ -173,8 +178,7 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
     # normalised smoothing window
     bs = np.hanning(odd_win_len) / np.sum(np.hanning(odd_win_len))
     # zero-pad signal on either side
-    padded_signal = np.concatenate((np.zeros(staps), sig**2, np.zeros(staps)),
-                                   axis=0)
+    padded_signal = np.concatenate((np.zeros(staps), sig**2, np.zeros(staps)), axis=0)
     # smooth signal by convolving with window
     smoothed_signal = fftconvolve(bs, padded_signal)
     env = np.real(np.sqrt(np.abs(smoothed_signal)))
@@ -183,12 +187,14 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
     return env
 
 
-def calculate_amplitudes_least_squares(t_vals: NDArray,
-                                       fs: float,
-                                       rirs: NDArray,
-                                       f_bands: Optional[ArrayLike] = None,
-                                       leave_out_ms: float = 50.0,
-                                       verbose: bool = False) -> NDArray:
+def calculate_amplitudes_least_squares(
+    t_vals: NDArray,
+    fs: float,
+    rirs: NDArray,
+    f_bands: Optional[ArrayLike] = None,
+    leave_out_ms: float = 50.0,
+    verbose: bool = False,
+) -> NDArray:
     """
     Calculate amplitudes (one for each slope) using linear least squares
     Args:
@@ -196,7 +202,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
         fs (float): sampling rate
         rirs (NDArray): RIR matrix of shape n_rir x ir_len x n_bands
         f_bands (ArrayLike): frequency bands where RIR is calculated
-        leave_out_ms (float): number of samples to leave out of the 
+        leave_out_ms (float): number of samples to leave out of the
                              RIR to prevent bad conditioning
         verbose (bool): if true, the error in subbands is displayed
     Returns:
@@ -223,11 +229,9 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
         if num_rirs == 1:
             envelope_t = envelope_t.reshape(1, n_bands)
         # generate decay envelopes from t_vals
-        envelopes[:, :, i_slope, :] = decay_kernel(envelope_t,
-                                                   time,
-                                                   fs,
-                                                   normalize_envelope=True,
-                                                   add_noise=False)
+        envelopes[:, :, i_slope, :] = decay_kernel(
+            envelope_t, time, fs, normalize_envelope=True, add_noise=False
+        )
 
     est_level = np.zeros((num_rirs, n_slopes, n_bands), dtype=float)
 
@@ -238,7 +242,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
             cond_number = np.linalg.cond(np.abs(envelopes[i, :, :, k]))
             if np.abs(cond_number) > 1e6:
                 logger.warning(
-                    f'Condition number in band {f_bands[k]:.3f} Hz is {db(cond_number):.3f} dB, skipping amplitude calculation'
+                    f"Condition number in band {f_bands[k]:.3f} Hz is {db(cond_number):.3f} dB, skipping amplitude calculation"
                 )
                 continue
 
@@ -247,14 +251,13 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
             cur_edc = calculate_energy_envelope(cur_rir, fs, smooth_time_ms=50)
             cur_edc = cur_edc.reshape(ir_len, 1)
             # psi_k(t) - psi_k(L)
-            cur_envelope = (envelopes[i, :, :, k] - envelopes[i, -1, :, k])
+            cur_envelope = envelopes[i, :, :, k] - envelopes[i, -1, :, k]
             assert cur_envelope.shape == (ir_len, n_slopes)
             cur_level = np.linalg.pinv(cur_envelope) @ (cur_edc)
-            error[i, :,
-                  k] = np.linalg.norm(cur_envelope @ cur_level - cur_edc)**2
+            error[i, :, k] = np.linalg.norm(cur_envelope @ cur_level - cur_edc) ** 2
             if verbose:
                 logger.info(
-                    f'num_rir = {i}, num_band = {k}, error = {db(error[i,:,k], is_squared=True)} dB'
+                    f"num_rir = {i}, num_band = {k}, error = {db(error[i,:,k], is_squared=True)} dB"
                 )
             est_level[i, :, k] = np.squeeze(cur_level)
 
@@ -269,20 +272,17 @@ def get_bandpass_filters(fs: float, f_bands: List, filter_order: int = 5):
     for b_idx in range(num_bands):
         if f_bands[b_idx] == 0:
             f_cutoff = (1 / np.sqrt(1.5)) * f_bands[b_idx + 1]
-            z, p, k = butter(filter_order, f_cutoff / (fs / 2), output='zpk')
+            z, p, k = butter(filter_order, f_cutoff / (fs / 2), output="zpk")
         elif f_bands[b_idx] == fs / 2:
             f_cutoff = np.sqrt(1.5) * f_bands[b_idx - 1]
-            z, p, k = butter(filter_order,
-                             f_cutoff / (fs / 2),
-                             btype='high',
-                             output='zpk')
+            z, p, k = butter(
+                filter_order, f_cutoff / (fs / 2), btype="high", output="zpk"
+            )
         else:
-            this_band = f_bands[b_idx] * np.array(
-                [1 / np.sqrt(1.5), np.sqrt(1.5)])
-            z, p, k = butter(filter_order,
-                             this_band / (fs // 2),
-                             btype='band',
-                             output='zpk')
+            this_band = f_bands[b_idx] * np.array([1 / np.sqrt(1.5), np.sqrt(1.5)])
+            z, p, k = butter(
+                filter_order, this_band / (fs // 2), btype="band", output="zpk"
+            )
         sos[..., b_idx] = zpk2sos(z, p, k)
     return sos
 
@@ -334,7 +334,8 @@ def octave_filtering(
             out_bands[..., b_idx] = sosfilt(cur_sos, input_signal)
             if compensate_filter_energy:
                 out_bands[..., b_idx] = out_bands[..., b_idx] / np.sqrt(
-                    np.sum(np.fft.irfft(h)**2))
+                    np.sum(np.fft.irfft(h) ** 2)
+                )
 
     if get_filter_ir:
         return out_bands, sos_bands

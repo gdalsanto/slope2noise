@@ -13,7 +13,7 @@ from slope2noise.utils import *
 
 def main(config_dict: Config):
 
-    # sample energy decay parameters using uniform distribution
+    # sample energy d teecay parameters using uniform distribution
     t_vals = np.array(config_dict.t_vals)
     a_vals = np.array(config_dict.a_vals)
     n_vals = np.array(config_dict.n_vals)
@@ -24,6 +24,7 @@ def main(config_dict: Config):
                         fs=config_dict.fs,
                         ir_len=config_dict.ir_len,
                         f_bands=config_dict.f_bands,
+                        num_fractions=config_dict.num_fractions,
                         )
     rirs = np.sum(rirs, axis=-2) # sum over the slopes
     # test with Bayesian Decay Analysis
@@ -77,6 +78,9 @@ def main(config_dict: Config):
         plt.grid(True)
     plt.savefig('test/output/shaped_wgn.png')
 
+    # save one generated RIR
+    save_audio(os.path.join("test/output/", "rir.wav"), np.sum(rirs[0, :], -1),
+               config_dict.fs)
     # TODO: Sum the bands and plot the EDC after filtering again fit the filterbank
     
 if __name__ == "__main__":
