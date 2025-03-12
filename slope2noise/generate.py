@@ -30,13 +30,13 @@ def decay_curve(t_vals: NDArray,
 
 
 def shaped_wgn(
-        t_vals: NDArray,
-        a_vals: NDArray,
-        fs: float,
-        ir_len: int,
-        f_bands: Optional[ArrayLike] = None,
-        n_vals: Optional[NDArray] = None,
-        use_pyfar_filterbank: Optional[bool] = False
+    t_vals: NDArray,
+    a_vals: NDArray,
+    fs: float,
+    ir_len: int,
+    f_bands: Optional[ArrayLike] = None,
+    n_vals: Optional[NDArray] = None,
+    use_amp_preserving_filterbank: Optional[bool] = False,
 ) -> Tuple[NDArray, NDArray]:
     """
     Synthesise RIRs with white noise shaping
@@ -47,7 +47,8 @@ def shaped_wgn(
         ir_len (int): Length of the IR in samples
         f_bands (Optional, ArrayLike): frequency bands in which T60s and amplitudes are specified
         n_modes (Optional, int): number of modes to synthesise if using modal synthesis
-        use_pyfar_filterbank (Optional, bool): whether to use Pyfar's perfect reconstruction octave filterbank
+        use_amp_preserving_filterbank (Optional, bool): whether to use Pyfar's perfect reconstruction 
+                                                        octave filterbank, or energy preserving filterbank
     Returns:
         NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_slopes x n_bands, and summed RIRs of size n_rir x ir_len
     """
@@ -110,7 +111,8 @@ def shaped_wgn(
                 f_bands,
                 ir_len=ir_len,
                 compensate_filter_energy=True,
-                use_pyfar_filterbank=use_pyfar_filterbank)
+                use_amp_preserving_filterbank=use_amp_preserving_filterbank,
+            )
             logger.info(f"Done with octave filtering for slope {i_slope+1}")
 
             for i_band in range(n_bands):

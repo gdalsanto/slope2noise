@@ -324,7 +324,6 @@ class RoomGeometry():
         save_path: Optional[str] = None,
     ):
         """Plot the MSE EDC error at different receiver points"""
-
         x_rec = rec_pos[:, 0]
         y_rec = rec_pos[:, 1]
 
@@ -408,7 +407,6 @@ class RoomGeometry():
                                      amps: NDArray,
                                      scatter_plot: bool = True,
                                      title: Optional[str] = None,
-                                     cur_freq_hz: Optional[float] = 1000,
                                      save_path: Optional[str] = None,
                                      error_plot: bool = False):
         """
@@ -476,7 +474,8 @@ class RoomGeometry():
                 im = cur_ax.imshow(db(amps_interp, is_squared=True),
                                    extent=(0, x_lim, 0, y_lim),
                                    origin='lower',
-                                   vmin=0 if error_plot else -60,
+                                   vmin=0 if error_plot else np.min(
+                                       db(amps[i, :], is_squared=True)),
                                    cmap='viridis')
             fig.colorbar(im, ax=cur_ax, orientation='vertical')
             cur_ax.scatter(source_pos[0],
@@ -488,11 +487,6 @@ class RoomGeometry():
 
             cur_ax.set_xlabel('X axis')
             cur_ax.set_ylabel('Y axis')
-            # if cur_freq_hz is not None:
-            #     cur_ax.set_title(
-            #         f'{cur_freq_hz:.0f} Hz amplitudes for slope = {i+1}')
-            # else:
-            #     cur_ax.set_title(f'Broadband amplitudes for slope = {i+1}')
             cur_ax = self.draw_boundaries(cur_ax)
 
         # Show the plot
