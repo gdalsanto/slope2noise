@@ -434,8 +434,8 @@ def octave_filtering(
                                                 axis=-1)
 
                 if compensate_filter_energy:
-                    out_bands[..., b_idx] /= np.sqrt(
-                        np.sum(np.fft.irfft(impulse_response)**2))
+                    out_bands[...,
+                              b_idx] /= np.sqrt(np.sum((impulse_response)**2))
 
     if get_filter_ir:
         return out_bands, subband_filters.coefficients
