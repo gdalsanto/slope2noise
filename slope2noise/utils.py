@@ -346,7 +346,6 @@ def octave_filtering(
         input_signal: Union[ArrayLike, NDArray],
         fs: float,
         f_bands: List,
-        order: int = 5,
         get_filter_ir: bool = False,
         compensate_filter_energy: bool = False,
         ir_len: Optional[int] = None,
@@ -359,7 +358,6 @@ def octave_filtering(
     fs (float): The sampling frequency of the input signal.
     f_bands (List): List of frequency bands for filtering.
     ir_len (Optional[int]): Length of the impulse response of the filters.
-    order (int, optional): The order of the filter. Default is 5.
     get_filter_ir (bool, optional): Whether to get the filter impulse response. Default is False.
     use_amp_preserving_filterbank (bool, optional): if using pyfar, whether to use amp preserving FIR filterbank or
                                                     energy preserving Butterworth filterbank
@@ -371,11 +369,10 @@ def octave_filtering(
     if ir_len is None:
         ir_len = len(
             input_signal) if input_signal.ndim == 1 else input_signal.shape[-1]
+
+    out_bands = np.zeros((*input_signal.shape, num_bands))
     if get_filter_ir:
-        out_bands = np.zeros((ir_len, num_bands))
-        sos_bands = np.zeros((order, 6, num_bands))
-    else:
-        out_bands = np.zeros((*input_signal.shape, num_bands))
+        impulse_response = np.zeros((num_bands, *input_signal.shape))
 
     pf_freqs, _ = pf.dsp.filter.fractional_octave_frequencies(
         num_fractions=1, frequency_range=(f_bands[0], f_bands[-1]))
@@ -389,6 +386,7 @@ def octave_filtering(
             frequency_range=(f_bands[0], f_bands[-1]),
             sampling_rate=fs,
         )
+        impulse_response = subband_filters.coefficients
     else:
         subband_filters = pf.dsp.filter.fractional_octave_bands(
             None,
@@ -400,29 +398,21 @@ def octave_filtering(
     for b_idx in range(num_bands):
         # FIR filterbank
         if use_amp_preserving_filterbank:
-            if get_filter_ir:
-                impulse_response = fftconvolve(
-                    np.r_[1.0, np.zeros(ir_len - 1)],
-                    subband_filters.coefficients[b_idx, ...],
-                    mode='same')
-                out_bands[..., b_idx] = impulse_response
+            if input_signal.ndim > 1:
+                cur_filters = np.tile(subband_filters.coefficients[b_idx, ...],
+                                      (input_signal.shape[0], 1))
             else:
-                if input_signal.ndim > 1:
-                    cur_filters = np.tile(
-                        subband_filters.coefficients[b_idx, ...],
-                        (input_signal.shape[0], 1))
-                else:
-                    cur_filters = subband_filters.coefficients[b_idx, ...]
+                cur_filters = subband_filters.coefficients[b_idx, ...]
 
-                out_bands[..., b_idx] = fftconvolve(input_signal,
-                                                    cur_filters,
-                                                    axes=-1,
-                                                    mode='same')
-                if compensate_filter_energy:
-                    out_bands[..., b_idx] /= np.sqrt(
-                        np.sum(subband_filters.coefficients[b_idx, ...]**2))
+            out_bands[..., b_idx] = fftconvolve(input_signal,
+                                                cur_filters,
+                                                axes=-1,
+                                                mode='same')
+            if compensate_filter_energy:
+                out_bands[..., b_idx] /= np.sqrt(
+                    np.sum(impulse_response[b_idx, ...]**2))
         else:
-            impulse_response = sosfilt(
+            impulse_response[b_idx, :] = sosfilt(
                 subband_filters.coefficients[b_idx, ...],
                 np.r_[1.0, np.zeros(ir_len - 1)])
             if get_filter_ir:
@@ -434,10 +424,10 @@ def octave_filtering(
                                                 axis=-1)
 
                 if compensate_filter_energy:
-                    out_bands[...,
-                              b_idx] /= np.sqrt(np.sum((impulse_response)**2))
+                    out_bands[..., b_idx] /= np.sqrt(
+                        np.sum((impulse_response[b_idx, :])**2))
 
     if get_filter_ir:
-        return out_bands, subband_filters.coefficients
+        return out_bands, impulse_response
     else:
         return out_bands
