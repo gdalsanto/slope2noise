@@ -394,6 +394,7 @@ def octave_filtering(
             frequency_range=(f_bands[0], f_bands[-1]),
             sampling_rate=fs,
         )
+        impulse_response = np.zeros((num_bands, ir_len))
 
     for b_idx in range(num_bands):
         # FIR filterbank
