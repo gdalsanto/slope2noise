@@ -192,14 +192,14 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
     return env
 
 
-def calculate_amplitudes_least_squares(
-        t_vals: NDArray,
-        fs: float,
-        rirs: NDArray,
-        f_bands: Optional[ArrayLike] = None,
-        leave_out_ms: float = 50.0,
-        verbose: bool = False,
-        use_non_linear_ls: bool = True) -> NDArray:
+def calculate_amplitudes_least_squares(t_vals: NDArray,
+                                       fs: float,
+                                       rirs: NDArray,
+                                       f_bands: Optional[ArrayLike] = None,
+                                       leave_out_ms: float = 50.0,
+                                       verbose: bool = False,
+                                       use_non_linear_ls: bool = True,
+                                       downsample_factor: int = 10) -> NDArray:
     """
     Calculate amplitudes (one for each slope) using linear least squares
     Args:
@@ -210,6 +210,8 @@ def calculate_amplitudes_least_squares(
         leave_out_ms (float): number of samples to leave out of the 
                              RIR to prevent bad conditioning
         verbose (bool): if true, the error in subbands is displayed
+        downsample_factor (int): downsample the signal after calculating EDC, otherwise
+                                 calculation is too heavy
     Returns:
         NDArray: estimated amplitudes of shape n_rir x n_slopes + 1 x n_bands.
                 The first slope contains the noise floor.
@@ -223,15 +225,16 @@ def calculate_amplitudes_least_squares(
     rirs = rirs[:, :-leave_out_samps, :]
 
     num_rirs, ir_len, n_bands = rirs.shape
+    ir_len_downsampled = ir_len // downsample_factor
     n_slopes = t_vals.shape[1]
-    time = np.linspace(0, (ir_len - 1) / fs, ir_len)
+    time = np.linspace(0, (ir_len_downsampled - 1) / fs, ir_len_downsampled)
 
     # find the exponential decay envelope for each slope
     # the decay kernel sum_{k=1}^K exp(-t/tau_k) of size n_rir x ir_len x n_slopes x n_bands
-    envelopes = np.zeros((num_rirs, ir_len, n_slopes + 1, n_bands))
+    envelopes = np.zeros((num_rirs, ir_len_downsampled, n_slopes + 1, n_bands))
 
     # the first slope contains the noise term, and has kernel L - t
-    psi_0 = 0.5 * (ir_len - np.arange(ir_len)) / fs
+    psi_0 = 0.5 * (ir_len_downsampled - np.arange(ir_len_downsampled)) / fs
     envelopes[:, :, 0, :] = np.tile(psi_0[np.newaxis, :, np.newaxis],
                                     (num_rirs, 1, n_bands))
 
@@ -254,28 +257,22 @@ def calculate_amplitudes_least_squares(
     for i in tqdm(range(num_rirs)):
         for k in range(n_bands):
 
-            # cond_number = np.linalg.cond(np.abs(envelopes[i, :, 1:, k]))
-            # if np.abs(cond_number) > 1e6:
-            #     logger.warning(
-            #         f'Condition number in band {k} is {db(cond_number):.3f} dB, skipping amplitude calculation'
-            #     )
-            #     continue
-
             cur_rir = rirs[i, :, k]
 
             # calculate EDC of the RIR
             cur_edc = schroeder_backward_int(cur_rir,
                                              normalize=False,
                                              discard_last_zeros=False)
-            cur_edc = cur_edc.reshape(ir_len, 1)
+            cur_edc = cur_edc[:-1:downsample_factor].reshape(
+                ir_len_downsampled, 1)
 
             # get the current RIR's envelope
-            cur_envelope = np.zeros((ir_len, n_slopes + 1))
+            cur_envelope = np.zeros((ir_len_downsampled, n_slopes + 1))
             cur_envelope[:, 0] = envelopes[i, :, 0, k]
             # psi_k(t) - psi_k(L)
             cur_envelope[:, 1:] = (envelopes[i, :, 1:, k] -
                                    envelopes[i, -1, 1:, k])
-            assert cur_envelope.shape == (ir_len, n_slopes + 1)
+            assert cur_envelope.shape == (ir_len_downsampled, n_slopes + 1)
 
             if use_non_linear_ls:
                 # non-linear least squares minimising error in dB,
@@ -305,9 +302,9 @@ def calculate_amplitudes_least_squares(
                 #                        verbose=0)['x'].reshape(
                 #                            n_slopes + 1, 1)
 
-            error[i, :,
-                  k] = np.linalg.norm(cur_envelope @ cur_level - cur_edc)**2
             if verbose:
+                error[i, :, k] = np.linalg.norm(cur_envelope @ cur_level -
+                                                cur_edc)**2
                 logger.info(
                     f'num_rir = {i}, num_band = {k}, error = {db(error[i,:,k], is_squared=True)} dB'
                 )
