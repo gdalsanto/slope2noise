@@ -464,7 +464,7 @@ class RoomGeometry():
             fig.subplots_adjust(hspace=0.3)
             fig.colorbar(im, ax=ax[1], orientation='vertical')
 
-        return amps_interp, win_2D_matrix
+        return (amps_interp, win_2D_matrix) if smooth_edges else amps_interp
 
     def plot_edc_error_at_receiver_points(
         self,
@@ -527,7 +527,6 @@ class RoomGeometry():
         fig.tight_layout()
         if save_path is not None:
             plt.savefig(save_path)
-        # plt.show()
         return fig
 
     def plot_amps_at_receiver_points(self,
