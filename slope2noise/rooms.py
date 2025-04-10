@@ -498,11 +498,12 @@ class RoomGeometry():
         else:
             edc_error_interp = self.get_2D_matrix_of_amplitudes(
                 rec_pos, edc_error, boundary_limits=(x_lim, y_lim))
-            im = cur_ax.imshow(db(edc_error_interp, is_squared=True),
+            to_plot = db(edc_error_interp, is_squared=True)
+            im = cur_ax.imshow(to_plot,
                                extent=(0, x_lim, 0, y_lim),
                                origin='lower',
                                vmin=0,
-                               vmax=max(3.0, max(db(edc_error_interp))),
+                               vmax=max(3.0, np.max(to_plot)),
                                cmap='viridis')
         fig.colorbar(im, ax=cur_ax, orientation='vertical')
         cur_ax.scatter(source_pos[0],
