@@ -502,7 +502,7 @@ class RoomGeometry():
                                extent=(0, x_lim, 0, y_lim),
                                origin='lower',
                                vmin=0,
-                               vmax=1.0,
+                               vmax=max(3.0, max(db(edc_error_interp))),
                                cmap='viridis')
         fig.colorbar(im, ax=cur_ax, orientation='vertical')
         cur_ax.scatter(source_pos[0],
@@ -527,6 +527,7 @@ class RoomGeometry():
         fig.tight_layout()
         if save_path is not None:
             plt.savefig(save_path)
+        plt.close()
         return fig
 
     def plot_amps_at_receiver_points(self,
@@ -536,7 +537,8 @@ class RoomGeometry():
                                      scatter_plot: bool = True,
                                      title: Optional[str] = None,
                                      save_path: Optional[str] = None,
-                                     error_plot: bool = False):
+                                     error_plot: bool = False,
+                                     db_limits: Optional[Tuple] = None):
         """
         Plot the amplitudes of the different slopes at specified receiver points.
         Args:
@@ -546,6 +548,7 @@ class RoomGeometry():
                                  or interpolate them to be continuous functions of space
             cur_freq_hz (optional (float)): band centre frequency in Hz
             error_plot (bool): whether we are plotting amplitudes or their mismatch error
+            db_limits (tuple, optional): the limits of the plot in dB
         """
         # set axis limits
         boundaries_list = [[
@@ -559,6 +562,10 @@ class RoomGeometry():
                                1,
                                figsize=(6, 3 * self.num_rooms))
         fig.tight_layout()
+        if db_limits is None:
+            db_limits = np.zeros((2, self.num_rooms))
+            db_limits[0, :] = np.min(db(amps, is_squared=True), axis=-1)
+            db_limits[1, :] = np.max(db(amps, is_squared=True), axis=-1)
 
         # Plot the X, Y, Z points
         for i in range(self.num_rooms):
@@ -573,13 +580,14 @@ class RoomGeometry():
                 cur_ax.set_xlim(0, x_lim + 0.5)
                 cur_ax.set_ylim(0, y_lim + 0.5)
             else:
+
                 amps_interp = self.get_2D_matrix_of_amplitudes(
                     rec_pos, amps[i, :], boundary_limits=(x_lim, y_lim))
                 im = cur_ax.imshow(db(amps_interp, is_squared=True),
                                    extent=(0, x_lim, 0, y_lim),
                                    origin='lower',
-                                   vmin=0 if error_plot else np.min(
-                                       db(amps[i, :], is_squared=True)),
+                                   vmin=db_limits[0, i],
+                                   vmax=db_limits[1, i],
                                    cmap='viridis')
             fig.colorbar(im, ax=cur_ax, orientation='vertical')
             cur_ax.scatter(source_pos[0],
@@ -600,5 +608,5 @@ class RoomGeometry():
         fig.tight_layout()
         if save_path is not None:
             plt.savefig(save_path)
-        # plt.show()
+        plt.close()
         return fig
