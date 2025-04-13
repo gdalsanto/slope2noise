@@ -478,6 +478,9 @@ class RoomGeometry():
     ):
         """Plot the MSE EDC error at different receiver points"""
         # set axis limits
+        x_rec = rec_pos[:, 0]
+        y_rec = rec_pos[:, 1]
+
         boundaries_list = [[
             a + b for a, b in zip(sublist1, sublist2)
         ] for sublist1, sublist2 in zip(self.room_dims, self.room_start_coord)]
@@ -489,9 +492,12 @@ class RoomGeometry():
         fig.tight_layout()
 
         if scatter_plot:
+            to_plot = db(edc_error, is_squared=True, min_value=0)
             im = cur_ax.scatter(x_rec,
                                 y_rec,
-                                c=db(edc_error, is_squared=True, min_value=0))
+                                c=to_plot,
+                                vmin=0,
+                                vmax=to_plot.max())
             # Set the limits for all axes
             cur_ax.set_xlim(0, x_lim + 0.5)
             cur_ax.set_ylim(0, y_lim + 0.5)
@@ -552,6 +558,9 @@ class RoomGeometry():
             db_limits (tuple, optional): the limits of the plot in dB
         """
         # set axis limits
+        x_rec = rec_pos[:, 0]
+        y_rec = rec_pos[:, 1]
+
         boundaries_list = [[
             a + b for a, b in zip(sublist1, sublist2)
         ] for sublist1, sublist2 in zip(self.room_dims, self.room_start_coord)]
@@ -574,9 +583,9 @@ class RoomGeometry():
             if scatter_plot:
                 im = cur_ax.scatter(x_rec,
                                     y_rec,
-                                    c=db(amps[i, :],
-                                         is_squared=True,
-                                         min_value=-40))
+                                    c=db(amps[i, :], is_squared=True),
+                                    vmin=db_limits[0, i],
+                                    vmax=db_limits[0, i])
                 # Set the limits for all axes
                 cur_ax.set_xlim(0, x_lim + 0.5)
                 cur_ax.set_ylim(0, y_lim + 0.5)

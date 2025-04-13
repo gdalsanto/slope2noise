@@ -199,7 +199,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                                        leave_out_ms: float = 50.0,
                                        verbose: bool = False,
                                        use_non_linear_ls: bool = True,
-                                       downsample_factor: int = 10) -> NDArray:
+                                       downsample_factor: int = 1) -> NDArray:
     """
     Calculate amplitudes (one for each slope) using linear least squares
     Args:
