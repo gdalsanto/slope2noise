@@ -517,14 +517,14 @@ class RoomGeometry():
                        color='red',
                        marker='x',
                        s=50)
-        # Labels and title
 
+        # Labels and title
         cur_ax.set_xlabel('X axis')
         cur_ax.set_ylabel('Y axis')
         if cur_freq_hz is not None:
             cur_ax.set_title(f'{cur_freq_hz:.0f} Hz EDC error')
-        else:
-            cur_ax.set_title(f'Broadband EDC error')
+        # else:
+        #     cur_ax.set_title(f'Broadband EDC error')
         cur_ax = self.draw_boundaries(cur_ax)
 
         # Show the plot

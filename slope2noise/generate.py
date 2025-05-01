@@ -36,7 +36,7 @@ def shaped_wgn(
     ir_len: int,
     f_bands: Optional[ArrayLike] = None,
     n_vals: Optional[NDArray] = None,
-    use_amp_preserving_filterbank: Optional[bool] = False,
+    use_amp_preserving_filterbank: Optional[bool] = True,
 ) -> Tuple[NDArray, NDArray]:
     """
     Synthesise RIRs with white noise shaping
