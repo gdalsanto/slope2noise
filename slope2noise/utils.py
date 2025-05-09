@@ -263,7 +263,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
             cur_edc = schroeder_backward_int(cur_rir,
                                              normalize=False,
                                              discard_last_zeros=False)
-            cur_edc = cur_edc[:-1:downsample_factor].reshape(
+            cur_edc = cur_edc[::downsample_factor].reshape(
                 ir_len_downsampled, 1)
 
             # get the current RIR's envelope

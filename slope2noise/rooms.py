@@ -8,6 +8,16 @@ from typing import Optional, List, Tuple, Union
 
 from .utils import db
 
+scale = 2
+plt.rcParams.update({
+    'font.size': scale * 8,  # base font size
+    'axes.labelsize': scale * 9,  # x/y label
+    'xtick.labelsize': scale * 8,
+    'ytick.labelsize': scale * 8,
+    'legend.fontsize': scale * 8,
+    'axes.titlesize': scale * 10,  # usually unused in journal figures
+})
+
 
 @dataclass
 class Meshgrid():
@@ -421,7 +431,7 @@ class RoomGeometry():
                                amps, (x_mesh, y_mesh),
                                method='cubic')  # Interpolate z value
         # Set values outside the limits to 0
-        amps_interp[~combined_mask] = 0  # Apply the mask
+        amps_interp[~combined_mask] = np.nan  # Apply the mask
 
         # ---- Apply 2D Hanning Window ----
         if smooth_edges:
@@ -505,12 +515,16 @@ class RoomGeometry():
             edc_error_interp = self.get_2D_matrix_of_amplitudes(
                 rec_pos, edc_error, boundary_limits=(x_lim, y_lim))
             to_plot = db(edc_error_interp, is_squared=True)
+
+            # set NaN values outside boundaries to white
+            cmap = plt.cm.viridis.copy()
+            cmap.set_bad('white')
             im = cur_ax.imshow(to_plot,
                                extent=(0, x_lim, 0, y_lim),
                                origin='lower',
                                vmin=0,
                                vmax=max(3.0, np.max(to_plot)),
-                               cmap='viridis')
+                               cmap=cmap)
         fig.colorbar(im, ax=cur_ax, orientation='vertical')
         cur_ax.scatter(source_pos[0],
                        source_pos[1],
@@ -523,8 +537,7 @@ class RoomGeometry():
         cur_ax.set_ylabel('Y axis')
         if cur_freq_hz is not None:
             cur_ax.set_title(f'{cur_freq_hz:.0f} Hz EDC error')
-        # else:
-        #     cur_ax.set_title(f'Broadband EDC error')
+
         cur_ax = self.draw_boundaries(cur_ax)
 
         # Show the plot
@@ -593,12 +606,16 @@ class RoomGeometry():
 
                 amps_interp = self.get_2D_matrix_of_amplitudes(
                     rec_pos, amps[i, :], boundary_limits=(x_lim, y_lim))
+
+                # set NaN values outside boundaries to white
+                cmap = plt.cm.viridis.copy()
+                cmap.set_bad('white')
                 im = cur_ax.imshow(db(amps_interp, is_squared=True),
                                    extent=(0, x_lim, 0, y_lim),
                                    origin='lower',
                                    vmin=db_limits[0, i],
                                    vmax=db_limits[1, i],
-                                   cmap='viridis')
+                                   cmap=cmap)
             fig.colorbar(im, ax=cur_ax, orientation='vertical')
             cur_ax.scatter(source_pos[0],
                            source_pos[1],
