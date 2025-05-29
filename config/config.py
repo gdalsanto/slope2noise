@@ -32,8 +32,9 @@ class Config(BaseModel):
     # number of modes to synthesize
     n_modes: Optional[int] = None
     # center frequnecy of the band. If none is provided, it is assumed to have homogeneous attenuation
-    f_bands: Optional[
-        List[float]] = None  # [125, 250, 500, 1000, 2000, 4000, 8000]
+    f_bands: Optional[List[float]] = None  # [125, 250, 500, 1000, 2000, 4000, 8000]
+    # number of frequency bands
+    num_fractions: Optional[int] = None
     # decay time values (n_rirs x n_slopes x n_bands)
     t_vals: List[List[List[float]]] = [[[0.5], [3.5]]]
     # amplitude values (n_rirs x n_slopes x n_bands)
@@ -61,20 +62,21 @@ class Config(BaseModel):
             num_rooms = model.room_geom_config.num_rooms
             if num_rooms != model.n_slopes:
                 raise ValueError(
-                    "Number of rooms must be equal to the number of slopes")
+                    "Number of rooms must be equal to the number of slopes"
+                )
 
             num_dims = len(model.room_geom_config.room_dims)
             num_start_coords = len(model.room_geom_config.start_coordinates)
-            assert num_dims == num_start_coords == num_rooms, \
-                    "Room dimensions and start coordinates must be equal to number of rooms"
+            assert (
+                num_dims == num_start_coords == num_rooms
+            ), "Room dimensions and start coordinates must be equal to number of rooms"
 
         if len(model.t_vals[0]) != model.n_slopes:
-            raise ValueError(
-                "Length of specified T60 must match number of slopes")
+            raise ValueError("Length of specified T60 must match number of slopes")
 
         if model.batch_size > model.n_rirs:
             raise ValueError(
                 f"Batch size {model.batch_size} should be smaller than the number of rirs {model.n_rirs}"
             )
-        
+
         return model

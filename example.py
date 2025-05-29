@@ -11,7 +11,6 @@ from slope2noise.utils import *
 from slope2noise.dataclass import CommonSlopesRIRSimple
 
 
-
 def main(config_dict: Config):
 
     # detect whether the decay time values are broadband of frequency dependent
@@ -21,35 +20,42 @@ def main(config_dict: Config):
         n_bands = len(config_dict.f_bands)
 
     t_vals = np.random.uniform(
-        0.5, 3,
-        (config_dict.n_rirs, config_dict.n_slopes, n_bands))
+        0.5, 3, (config_dict.n_rirs, config_dict.n_slopes, n_bands))
 
     a_vals = np.random.uniform(
-        10**(-3. / 10), 1,
+        10**(-3.0 / 10), 1,
         (config_dict.n_rirs, config_dict.n_slopes, n_bands))
 
-    for i_batch in range(int(np.ceil(config_dict.n_rirs / config_dict.batch_size))):
-        _, rirs = shaped_wgn(t_vals[:(i_batch + 1) * config_dict.batch_size, ...],
-                            a_vals[:(i_batch + 1) * config_dict.batch_size, ...],
-                            fs=config_dict.fs,
-                            ir_len=config_dict.ir_len,
-                            f_bands=config_dict.f_bands,
-                            )
-        
+    n_vals = np.zeros((config_dict.n_rirs, n_bands))
+
+    for i_batch in range(
+            int(np.ceil(config_dict.n_rirs / config_dict.batch_size))):
+        _, rirs = shaped_wgn(
+            t_vals[:(i_batch + 1) * config_dict.batch_size, ...],
+            a_vals[:(i_batch + 1) * config_dict.batch_size, ...],
+            fs=config_dict.fs,
+            ir_len=config_dict.ir_len,
+            f_bands=config_dict.f_bands,
+            n_vals=n_vals[:(i_batch + 1) * config_dict.batch_size],
+            num_fractions=config_dict.num_fractions,
+        )
+
         RIRs = CommonSlopesRIRSimple(
-            n_slopes = config_dict.n_slopes,
-            a_vals = a_vals[:(i_batch + 1) * config_dict.batch_size, ...],
-            t_vals = t_vals[:(i_batch + 1) * config_dict.batch_size, ...],
-            rir = rirs,
-            sample_rate = config_dict.fs,
-            batch_id = i_batch,
-            f_bands = config_dict.f_bands,
+            n_slopes=config_dict.n_slopes,
+            a_vals=a_vals[:(i_batch + 1) * config_dict.batch_size, ...],
+            t_vals=t_vals[:(i_batch + 1) * config_dict.batch_size, ...],
+            n_vals=n_vals[:(i_batch + 1) * config_dict.batch_size],
+            rir=rirs,
+            sample_rate=config_dict.fs,
+            batch_id=i_batch,
+            f_bands=config_dict.f_bands,
         )
         # save it to a pkl file
         with open(
                 os.path.join(config_dict.output_dir,
                              f"bb_wgn_{i_batch:04}.pkl"), "wb") as f:
-            pickle.dump(RIRs, f)   
+            pickle.dump(RIRs, f)
+
 
 if __name__ == "__main__":
 
@@ -70,12 +76,12 @@ if __name__ == "__main__":
         file_path = Path(args.config_file).resolve()
 
         # Read and parse the YAML file
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             config_data = yaml.safe_load(file)
         config_dict = Config(**config_data)
     else:
         config_dict = Config()
-    
+
     # make output directory if it doesn't exist
     if not os.path.exists(config_dict.output_dir):
         os.makedirs(config_dict.output_dir)

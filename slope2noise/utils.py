@@ -55,7 +55,7 @@ def slope_param_shape_check(t_vals: NDArray, a_vals: NDArray,
     if f_bands is not None:
         assert t_vals.shape[-1] == len(
             f_bands
-        ), 'Mismatch in number of bands. t_vals should have appropriate dimensions.'
+        ), "Mismatch in number of bands. t_vals should have appropriate dimensions."
         n_bands = len(f_bands)
     else:
         n_bands = 1  # broadband
@@ -128,11 +128,13 @@ def schroeder_backward_int(rir: NDArray,
         return out
 
 
-def decay_kernel(envelope_t: Union[float, ArrayLike],
-                 time: ArrayLike,
-                 fs: float,
-                 normalize_envelope: bool = False,
-                 add_noise: bool = False) -> NDArray:
+def decay_kernel(
+    envelope_t: Union[float, ArrayLike],
+    time: ArrayLike,
+    fs: float,
+    normalize_envelope: bool = False,
+    add_noise: bool = False,
+) -> NDArray:
     """
     Decay kernel for the exponential envelope. Accepts only one frequncy band at a time.
     Args:
@@ -144,14 +146,14 @@ def decay_kernel(envelope_t: Union[float, ArrayLike],
     Returns:
         NDArray: exp(-t/tau) exponential decay kernel, or exp(-t/tau) + n(t) with noise
     """
-    assert len(envelope_t.shape) <= 2, 'Only one frequency band is accepted'
+    assert len(envelope_t.shape) <= 2, "Only one frequency band is accepted"
 
     tau_vals = np.log(10**6) / envelope_t
-    exponential = np.exp(-np.einsum('nb,t->ntb', tau_vals, time))
+    exponential = np.exp(-np.einsum("nb,t->ntb", tau_vals, time))
 
     # normalise the kernel to have unit energy
     if normalize_envelope:
-        exponential = np.einsum('ntb, nb -> ntb', exponential,
+        exponential = np.einsum("ntb, nb -> ntb", exponential,
                                 np.sqrt((1 - np.exp(-2 * tau_vals / fs))))
 
     # construct the decay kernel
@@ -174,7 +176,7 @@ def calculate_energy_envelope(sig: ArrayLike, fs: float,
     Args:
         sig (ArrayLike): 1D RIR signal
         fs (float): sampling rate
-        smooth_time_ms (float): smoothing window length in ms, 
+        smooth_time_ms (float): smoothing window length in ms,
                                 longer window leads to more smoothing
     """
     staps = ms_to_samps(smooth_time_ms / 2, fs)
@@ -207,7 +209,7 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
         fs (float): sampling rate
         rirs (NDArray): RIR matrix of shape n_rir x ir_len x n_bands
         f_bands (ArrayLike): frequency bands where RIR is calculated
-        leave_out_ms (float): number of samples to leave out of the 
+        leave_out_ms (float): number of samples to leave out of the
                              RIR to prevent bad conditioning
         verbose (bool): if true, the error in subbands is displayed
         downsample_factor (int): downsample the signal after calculating EDC, otherwise
@@ -301,12 +303,11 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                 #                        lsmr_tol='auto',
                 #                        verbose=0)['x'].reshape(
                 #                            n_slopes + 1, 1)
-
             if verbose:
                 error[i, :, k] = np.linalg.norm(cur_envelope @ cur_level -
                                                 cur_edc)**2
                 logger.info(
-                    f'num_rir = {i}, num_band = {k}, error = {db(error[i,:,k], is_squared=True)} dB'
+                    f"num_rir = {i}, num_band = {k}, error = {db(error[i,:,k], is_squared=True)} dB"
                 )
             est_level[i, :, k] = np.squeeze(cur_level)
 
@@ -320,6 +321,7 @@ def octave_filtering(
         f_bands: List,
         get_filter_ir: bool = False,
         compensate_filter_energy: bool = False,
+        num_fractions: int = 1,
         ir_len: Optional[int] = None,
         use_amp_preserving_filterbank: Optional[bool] = False) -> NDArray:
     """
@@ -342,19 +344,22 @@ def octave_filtering(
         ir_len = len(
             input_signal) if input_signal.ndim == 1 else input_signal.shape[-1]
 
+    assert (num_fractions == 1) | (num_fractions
+                                   == 3), "num_fractions must be either 1 or 3"
+
     out_bands = np.zeros((*input_signal.shape, num_bands))
     if get_filter_ir:
         impulse_response = np.zeros((num_bands, *input_signal.shape))
 
     pf_freqs, _ = pf.dsp.filter.fractional_octave_frequencies(
-        num_fractions=1, frequency_range=(f_bands[0], f_bands[-1]))
+        num_fractions=num_fractions, frequency_range=(f_bands[0], f_bands[-1]))
     assert np.allclose(np.array(f_bands),
                        pf_freqs), "centre frequencies don't match"
 
     if use_amp_preserving_filterbank:
         subband_filters, _ = pf.dsp.filter.reconstructing_fractional_octave_bands(
             None,
-            num_fractions=1,
+            num_fractions=num_fractions,
             frequency_range=(f_bands[0], f_bands[-1]),
             sampling_rate=fs,
         )
@@ -362,7 +367,7 @@ def octave_filtering(
     else:
         subband_filters = pf.dsp.filter.fractional_octave_bands(
             None,
-            num_fractions=1,
+            num_fractions=num_fractions,
             frequency_range=(f_bands[0], f_bands[-1]),
             sampling_rate=fs,
         )

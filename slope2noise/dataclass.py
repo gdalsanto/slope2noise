@@ -16,10 +16,11 @@ class Slope2NoiseUnpickler(pickle.Unpickler):
 
 
 @dataclass
-class CommonSlopesRIR():
-    ''' 
+class CommonSlopesRIR:
+    """
     dataclass for the synthesized RIRs using shaped wgn and common slope parameters
-    '''
+    """
+
     room_dims: List
     room_start_coords: List
     source_locs: Union[ArrayLike, NDArray]
@@ -35,14 +36,16 @@ class CommonSlopesRIR():
 
 
 @dataclass
-class CommonSlopesRIRSimple():
-    ''' 
+class CommonSlopesRIRSimple:
+    """
     dataclass for the synthesized RIRs using shaped wgn and common slope parameters
-    '''
+    """
+
     n_slopes: int
     a_vals: NDArray
     t_vals: NDArray
     rir: NDArray
     sample_rate: float
+    n_vals: Optional[NDArray] = None
     batch_id: Optional[int] = None
     f_bands: Optional[ArrayLike] = None
