@@ -20,31 +20,31 @@ def main(config_dict: Config):
         n_bands = len(config_dict.f_bands)
 
     t_vals = np.random.uniform(
-        0.5, 3, (config_dict.n_rirs, config_dict.n_slopes, n_bands)
-    )
+        0.5, 3, (config_dict.n_rirs, config_dict.n_slopes, n_bands))
 
     a_vals = np.random.uniform(
-        10 ** (-3.0 / 10), 1, (config_dict.n_rirs, config_dict.n_slopes, n_bands)
-    )
+        10**(-3.0 / 10), 1,
+        (config_dict.n_rirs, config_dict.n_slopes, n_bands))
 
     n_vals = np.zeros((config_dict.n_rirs, n_bands))
 
-    for i_batch in range(int(np.ceil(config_dict.n_rirs / config_dict.batch_size))):
+    for i_batch in range(
+            int(np.ceil(config_dict.n_rirs / config_dict.batch_size))):
         _, rirs = shaped_wgn(
-            t_vals[: (i_batch + 1) * config_dict.batch_size, ...],
-            a_vals[: (i_batch + 1) * config_dict.batch_size, ...],
-            n_vals[: (i_batch + 1) * config_dict.batch_size],
+            t_vals[:(i_batch + 1) * config_dict.batch_size, ...],
+            a_vals[:(i_batch + 1) * config_dict.batch_size, ...],
             fs=config_dict.fs,
             ir_len=config_dict.ir_len,
             f_bands=config_dict.f_bands,
+            n_vals=n_vals[:(i_batch + 1) * config_dict.batch_size],
             num_fractions=config_dict.num_fractions,
         )
 
         RIRs = CommonSlopesRIRSimple(
             n_slopes=config_dict.n_slopes,
-            a_vals=a_vals[: (i_batch + 1) * config_dict.batch_size, ...],
-            t_vals=t_vals[: (i_batch + 1) * config_dict.batch_size, ...],
-            n_vals=n_vals[: (i_batch + 1) * config_dict.batch_size],
+            a_vals=a_vals[:(i_batch + 1) * config_dict.batch_size, ...],
+            t_vals=t_vals[:(i_batch + 1) * config_dict.batch_size, ...],
+            n_vals=n_vals[:(i_batch + 1) * config_dict.batch_size],
             rir=rirs,
             sample_rate=config_dict.fs,
             batch_id=i_batch,
@@ -52,8 +52,8 @@ def main(config_dict: Config):
         )
         # save it to a pkl file
         with open(
-            os.path.join(config_dict.output_dir, f"bb_wgn_{i_batch:04}.pkl"), "wb"
-        ) as f:
+                os.path.join(config_dict.output_dir,
+                             f"bb_wgn_{i_batch:04}.pkl"), "wb") as f:
             pickle.dump(RIRs, f)
 
 

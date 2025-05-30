@@ -46,5 +46,6 @@ class CommonSlopesRIRSimple:
     t_vals: NDArray
     rir: NDArray
     sample_rate: float
+    n_vals: Optional[NDArray] = None
     batch_id: Optional[int] = None
     f_bands: Optional[ArrayLike] = None

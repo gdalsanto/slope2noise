@@ -17,16 +17,18 @@ def main(config_dict: Config):
     t_vals = np.array(config_dict.t_vals)
     a_vals = np.array(config_dict.a_vals)
     n_vals = np.array(config_dict.n_vals)
-    n_rirs, n_slopes, n_bands = t_vals.shape    
-    rirs, _ = shaped_wgn(t_vals,    
-                        a_vals,
-                        n_vals,
-                        fs=config_dict.fs,
-                        ir_len=config_dict.ir_len,
-                        f_bands=config_dict.f_bands,
-                        num_fractions=config_dict.num_fractions,
-                        )
-    rirs = np.sum(rirs, axis=-2) # sum over the slopes
+    n_rirs, n_slopes, n_bands = t_vals.shape
+
+    rirs, _ = shaped_wgn(
+        t_vals,
+        a_vals,
+        fs=config_dict.fs,
+        ir_len=config_dict.ir_len,
+        n_vals=n_vals,
+        f_bands=config_dict.f_bands,
+        num_fractions=config_dict.num_fractions,
+    )
+    rirs = np.sum(rirs, axis=-2)  # sum over the slopes
     # test with Bayesian Decay Analysis
     BDA = bda.BayesianDecayAnalysis(config_dict.n_slopes,
                                     config_dict.fs,
@@ -40,10 +42,21 @@ def main(config_dict: Config):
     A_LS = calculate_amplitudes_least_squares(
         t_vals,
         config_dict.fs,
-        rirs,  
+        rirs,
         config_dict.f_bands,
         leave_out_ms=50.0,
     )
+
+    # get RIRs with LS amplitude estimation
+    rirs_ls, _ = shaped_wgn(
+        t_vals,
+        A_LS[:, 1:, :],
+        fs=config_dict.fs,
+        ir_len=config_dict.ir_len,
+        f_bands=config_dict.f_bands,
+        n_vals=A_LS[:, 0, :],
+    )
+    rirs_ls = np.sum(rirs_ls, axis=-2)  # sum over the slopes
 
     print(
         f"Estimated \nT_BDA: {np.squeeze(np.round(T_BDA, 3))}, A_BDA: {np.squeeze(np.round(A_BDA, 3))} \nA_LS: {np.squeeze(np.round(A_LS[0], 3))}\n" \
@@ -53,36 +66,58 @@ def main(config_dict: Config):
     # plot Energy Decay Curves
     target_edc = np.zeros((n_rirs, config_dict.ir_len, n_slopes + 1, n_bands))
     edc = np.zeros((n_rirs, config_dict.ir_len, n_bands))
+    edc_ls = np.zeros_like(edc)
     for i_band in range(n_bands):
-        target_edc[..., i_band] = decay_curve(t_vals[:,:,i_band], 
-                             a_vals[:,:,i_band],
-                             n_vals[:,i_band],
-                             fs=config_dict.fs,
-                             ir_len=config_dict.ir_len,
-                             add_noise=True)
-    
-        edc[..., i_band] = schroeder_backward_int(rirs[...,i_band], normalize=False)
-    time_axis = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs, config_dict.ir_len)
+        target_edc[..., i_band] = decay_curve(t_vals[:, :, i_band],
+                                              a_vals[:, :, i_band],
+                                              n_vals[:, i_band],
+                                              fs=config_dict.fs,
+                                              ir_len=config_dict.ir_len,
+                                              add_noise=True)
+
+        edc[..., i_band] = schroeder_backward_int(rirs[..., i_band],
+                                                  normalize=False)
+        edc_ls[..., i_band] = schroeder_backward_int(rirs_ls[..., i_band],
+                                                     normalize=False)
+
+    time_axis = np.linspace(0, (config_dict.ir_len - 1) / config_dict.fs,
+                            config_dict.ir_len)
 
     plt.figure(figsize=(15, 10))
     for i_band in range(n_bands):
-        plt.subplot(3, 3, i_band+1)
-        plt.plot(time_axis, 10*np.log10(edc[0,:, i_band]), label='shaped noise')
-        plt.plot(time_axis, 10*np.log10(np.sum(target_edc[0, :, :, i_band], -1)), '--', label='target')
+        plt.subplot(3, 3, i_band + 1)
+        plt.plot(time_axis,
+                 10 * np.log10(np.sum(target_edc[0, :, :, i_band], -1)),
+                 '--',
+                 label='target')
+        plt.plot(time_axis,
+                 10 * np.log10(edc[0, :, i_band]),
+                 label='shaped noise')
+        plt.plot(time_axis,
+                 10 * np.log10(edc_ls[0, :, i_band]),
+                 label='shaped noise LS amps')
+        plt.plot(np.zeros(n_slopes + 1),
+                 20 * np.log10(np.abs(A_LS[0, :, i_band])),
+                 'r*',
+                 label='LS est amps')
         plt.xlabel('Time (s)')
         plt.ylabel('Energy (dB)')
         plt.legend()
         plt.title(f'EDC at {config_dict.f_bands[i_band]} Hz')
         plt.ylim([-60, 7])
-        plt.xlim([0, 2])
+        plt.xlim([-0.01, 2])
         plt.grid(True)
+
+    plt.subplots_adjust(hspace=0.5)
+    plt.show()
     plt.savefig('test/output/shaped_wgn.png')
 
     # save one generated RIR
     save_audio(os.path.join("test/output/", "rir.wav"), np.sum(rirs[0, :], -1),
                config_dict.fs)
     # TODO: Sum the bands and plot the EDC after filtering again fit the filterbank
-    
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
