@@ -38,7 +38,7 @@ dependencies = [
     "PyYAML",
     "pydantic",
     "h5py",
-    "pyfar"
+    "pyfar",
 ]
 
 [project.urls]
