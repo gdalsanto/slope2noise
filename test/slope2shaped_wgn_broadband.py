@@ -17,7 +17,6 @@ def main(config_dict: Config):
     t_vals = np.array(config_dict.t_vals)
     a_vals = np.array(config_dict.a_vals)
     n_vals = np.array(config_dict.n_vals)
-    n_rirs, n_slopes, n_bands = t_vals.shape    
     _, rirs = shaped_wgn(t_vals,
                         a_vals,
                         n_vals,
