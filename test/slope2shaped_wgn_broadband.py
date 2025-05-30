@@ -91,8 +91,8 @@ def main(config_dict: Config):
     plt.ylim([-40, 5])
     plt.xlim([-0.01, 2])
     plt.grid(True)
-    plt.show()
     plt.savefig(os.path.join('test/output', 'shaped_wgn_broadband.png'))
+    plt.show()
 
 
 if __name__ == "__main__":
