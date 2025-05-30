@@ -66,6 +66,7 @@ def shaped_wgn(
 
     # expand dimensions if necessary
     t_vals, a_vals, n_bands = slope_param_shape_check(t_vals, a_vals, f_bands)
+    print(t_vals.shape, a_vals.shape, n_bands)
 
     n_rirs, n_slopes = t_vals.shape[:2]
     time = np.linspace(0, (ir_len - 1) / fs, ir_len)  # time arrray
@@ -74,8 +75,6 @@ def shaped_wgn(
     gaussian_noise = np.zeros((n_rirs, ir_len, n_slopes + 1, n_bands))
     shaped_noise = np.zeros_like(gaussian_noise)
     rirs = np.zeros_like(gaussian_noise)
-    # generate random sequence of Gaussian noise
-    random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
     # envelope is in linear scale, not quadratic, therefore decay rates halve,
     # and T values double
