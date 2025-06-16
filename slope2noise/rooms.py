@@ -545,7 +545,7 @@ class RoomGeometry:
                                 y_rec,
                                 c=to_plot,
                                 vmin=0,
-                                vmax=to_plot.max())
+                                vmax=max(3.0, to_plot.max()))
             # Set the limits for all axes
             cur_ax.set_xlim(0, x_lim + 0.5)
             cur_ax.set_ylim(0, y_lim + 0.5)
@@ -580,8 +580,9 @@ class RoomGeometry:
 
         # Show the plot
         if title is not None:
-            plt.suptitle(title)
+            plt.suptitle(title, x=0.5)
         fig.subplots_adjust(hspace=0.3)
+        fig.subplots_adjust(left=0.2)
         fig.tight_layout()
         if save_path is not None:
             plt.savefig(save_path)
