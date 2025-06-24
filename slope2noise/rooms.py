@@ -138,9 +138,9 @@ class RoomGeometry:
         # ax.view_init(elev=90, azim=-90)
 
         # Labels and title
-        ax.set_xlabel("X axis")
-        ax.set_ylabel("Y axis")
-        ax.set_zlabel("Z axis")
+        ax.set_xlabel("X axis (m)")
+        ax.set_ylabel("Y axis (m)")
+        ax.set_zlabel("Z axis (m)")
         ax.set_title("3D mesh grid of coupled space")
 
         # Show the plot
@@ -500,8 +500,8 @@ class RoomGeometry:
             fig.colorbar(im, ax=ax[0], orientation='vertical')
             # Labels and title
 
-            ax[0].set_xlabel('X axis')
-            ax[0].set_ylabel('Y axis')
+            ax[0].set_xlabel('X axis(m)')
+            ax[0].set_ylabel('Y axis (m)')
             ax[0].set_title('Amplitudes')
 
             im = ax[1].imshow(win_2D_matrix,
@@ -563,7 +563,9 @@ class RoomGeometry:
                                vmin=0,
                                vmax=max(3.0, np.max(to_plot)),
                                cmap=cmap)
-        fig.colorbar(im, ax=cur_ax, orientation='vertical')
+        cbar = fig.colorbar(im, ax=cur_ax, orientation='vertical')
+        cbar.set_label("dB", fontsize=8 * scale)
+
         cur_ax.scatter(source_pos[0],
                        source_pos[1],
                        color='red',
@@ -571,8 +573,8 @@ class RoomGeometry:
                        s=50)
 
         # Labels and title
-        cur_ax.set_xlabel('X axis')
-        cur_ax.set_ylabel('Y axis')
+        cur_ax.set_xlabel('X axis (m)')
+        cur_ax.set_ylabel('Y axis (m)')
         if cur_freq_hz is not None:
             cur_ax.set_title(f'{cur_freq_hz:.0f} Hz EDC error')
 
@@ -654,7 +656,9 @@ class RoomGeometry:
                                    vmin=db_limits[0, i],
                                    vmax=db_limits[1, i],
                                    cmap=cmap)
-            fig.colorbar(im, ax=cur_ax, orientation='vertical')
+            cbar = fig.colorbar(im, ax=cur_ax, orientation='vertical')
+            cbar.set_label("dB", fontsize=8 * scale)
+
             cur_ax.scatter(source_pos[0],
                            source_pos[1],
                            color='red',
@@ -662,8 +666,8 @@ class RoomGeometry:
                            s=50)
             # Labels and title
 
-            cur_ax.set_xlabel('X axis')
-            cur_ax.set_ylabel('Y axis')
+            cur_ax.set_xlabel('X axis (m)')
+            cur_ax.set_ylabel('Y axis (m)')
 
             cur_ax = self.draw_boundaries(cur_ax)
 

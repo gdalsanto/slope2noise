@@ -88,22 +88,6 @@ def shaped_wgn(
 
     loop_range = n_slopes if n_vals is None else n_slopes + 1
 
-    # generate random sequence of Gaussian noise, and filter it
-    random_sequence = np.random.randn(n_rirs, ir_len, 1)
-    if n_bands > 1:
-        logger.info(f"Filtering noise into subbands")
-        # this is of shape n_rirs x ir_len x n_bands
-        filtered_gaussian_noise = octave_filtering(
-            random_sequence[..., 0],
-            fs,
-            f_bands,
-            num_fractions=num_fractions,
-            ir_len=ir_len,
-            compensate_filter_energy=True,
-            use_amp_preserving_filterbank=use_amp_preserving_filterbank,
-        )
-        logger.info(f"Done with octave filtering")
-
     for i_slope in range(loop_range):
         # NOTE: last slope index is interpreted as noise term
         # generate decay envelope
@@ -117,8 +101,24 @@ def shaped_wgn(
             )
 
         logger.info(f"Done with kernel generation for slope {i_slope+1}")
+        # generate random sequence of Gaussian noise, and filter it
+        random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
         if n_bands > 1:
+
+            logger.info(f"Filtering noise into subbands slope {i_slope+1}")
+            # this is of shape n_rirs x ir_len x n_bands
+            filtered_gaussian_noise = octave_filtering(
+                random_sequence[..., 0],
+                fs,
+                f_bands,
+                num_fractions=num_fractions,
+                ir_len=ir_len,
+                compensate_filter_energy=True,
+                use_amp_preserving_filterbank=use_amp_preserving_filterbank,
+            )
+            logger.info(f"Done with octave filtering")
+
             if i_slope < n_slopes:
                 rirs[:, :, i_slope, :] = np.einsum(
                     'ntb, ntb -> ntb', filtered_gaussian_noise * envelopes,
