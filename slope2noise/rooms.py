@@ -536,7 +536,7 @@ class RoomGeometry:
         x_lim = max(lst[0] for lst in boundaries_list)
         y_lim = max(lst[1] for lst in boundaries_list)
 
-        fig, cur_ax = plt.subplots(1, 1, figsize=(6, 4))
+        fig, cur_ax = plt.subplots(1, 1, figsize=(6, 6))
         fig.tight_layout()
 
         if scatter_plot:
