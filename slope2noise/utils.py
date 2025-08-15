@@ -310,15 +310,6 @@ def calculate_amplitudes_least_squares(t_vals: NDArray,
                 # linear least squares without constraints
                 cur_level = np.linalg.pinv(cur_envelope) @ cur_edc
 
-                # linear least squares with constraints
-                # cur_level = lsq_linear(cur_envelope,
-                #                        np.squeeze(cur_edc),
-                #                        bounds=(np.zeros(n_slopes + 1),
-                #                                np.r_[1,
-                #                                      10 * np.ones(n_slopes)]),
-                #                        lsmr_tol='auto',
-                #                        verbose=0)['x'].reshape(
-                #                            n_slopes + 1, 1)
             if verbose:
                 error[i, :, k] = np.linalg.norm(cur_envelope @ cur_level -
                                                 cur_edc)**2
@@ -395,6 +386,10 @@ def octave_filtering(
             if input_signal.ndim > 1:
                 cur_filters = np.tile(subband_filters.coefficients[b_idx, ...],
                                       (input_signal.shape[0], 1))
+                # cur_filters = np.broadcast_to(
+                #     subband_filters.coefficients[b_idx, ...],
+                #     input_signal.shape[:-1] +
+                #     subband_filters.coefficients.shape[1:])
             else:
                 cur_filters = subband_filters.coefficients[b_idx, ...]
 
