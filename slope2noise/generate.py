@@ -40,6 +40,7 @@ def shaped_wgn(
     n_vals: Optional[NDArray] = None,
     f_bands: Optional[ArrayLike] = None,
     use_amp_preserving_filterbank: Optional[bool] = True,
+    verbose: bool = False,
 ) -> Tuple[NDArray, NDArray]:
     """
     Synthesise RIRs with white noise shaping
@@ -99,8 +100,8 @@ def shaped_wgn(
                 normalize_envelope=True,
                 add_noise=False,
             )
-
-        logger.info(f"Done with kernel generation for slope {i_slope+1}")
+        if verbose:
+            logger.info(f"Done with kernel generation for slope {i_slope+1}")
         # generate random sequence of Gaussian noise, and filter it
         random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
@@ -139,6 +140,7 @@ def shaped_wgn(
                 rirs[...,
                      i_slope, :] = np.einsum('ntb, nb -> ntb', random_sequence,
                                              n_vals_envelope)
-        logger.info(f"Done with noise shaping for slope {i_slope+1}")
+        if verbose:
+            logger.info(f"Done with noise shaping for slope {i_slope+1}")
 
     return rirs, rirs.sum(axis=-1).sum(axis=-1)
