@@ -65,6 +65,13 @@ def shaped_wgn(
     assert (len(a_vals.shape) == len(t_vals.shape) <=
             3), "Incorrect dimension for a_vals. Must be the same as t_vals."
 
+    if n_vals is not None:
+        assert len(n_vals.shape) == len(
+            t_vals.shape
+        ) - 1 <= 2, 'Incorrect dimension for n_vals. Must be the same be either  [n_rir x n_bands] or [n_rir].'
+        n_vals_envelope = -np.sqrt(n_vals / ir_len)
+        n_vals_envelope = np.expand_dims(n_vals_envelope, axis=-1)
+
     # expand dimensions if necessary
     t_vals, a_vals, n_bands = slope_param_shape_check(t_vals, a_vals, f_bands)
 
@@ -80,12 +87,6 @@ def shaped_wgn(
     # and T values double
     t_vals_envelope = 2 * np.array(t_vals)
     a_vals_envelope = np.expand_dims(np.sqrt(a_vals), 1)
-
-    if n_vals is not None:
-        assert len(n_vals.shape) == len(
-            t_vals.shape
-        ) - 1 <= 2, 'Incorrect dimension for n_vals. Must be the same be either  [n_rir x n_bands] or [n_rir].'
-        n_vals_envelope = -np.sqrt(n_vals / ir_len)
 
     loop_range = n_slopes if n_vals is None else n_slopes + 1
 
