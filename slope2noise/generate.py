@@ -70,8 +70,9 @@ def shaped_wgn(
             t_vals.shape
         ) - 1 <= 2, 'Incorrect dimension for n_vals. Must be the same be either  [n_rir x n_bands] or [n_rir].'
         n_vals_envelope = -np.sqrt(n_vals / ir_len)
-        n_vals_envelope = np.expand_dims(n_vals_envelope, axis=-1)
-
+        if len(n_vals.shape) == 1:
+            n_vals_envelope = np.expand_dims(n_vals_envelope, axis=-1)
+            
     # expand dimensions if necessary
     t_vals, a_vals, n_bands = slope_param_shape_check(t_vals, a_vals, f_bands)
 
