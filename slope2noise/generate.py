@@ -80,7 +80,6 @@ def shaped_wgn(
 
     # initialize output arrays
     gaussian_noise = np.zeros((n_rirs, ir_len, n_slopes + 1, n_bands))
-    shaped_noise = np.zeros_like(gaussian_noise)
     rirs = np.zeros_like(gaussian_noise)
 
     # envelope is in linear scale, not quadratic, therefore decay rates halve,
@@ -107,8 +106,8 @@ def shaped_wgn(
         random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
         if n_bands > 1:
-
-            logger.info(f"Filtering noise into subbands slope {i_slope+1}")
+            if verbose:
+                logger.info(f"Filtering noise into subbands slope {i_slope+1}")
             # this is of shape n_rirs x ir_len x n_bands
             filtered_gaussian_noise = octave_filtering(
                 random_sequence[..., 0],
