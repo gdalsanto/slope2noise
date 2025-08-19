@@ -118,7 +118,8 @@ def shaped_wgn(
                 compensate_filter_energy=True,
                 use_amp_preserving_filterbank=use_amp_preserving_filterbank,
             )
-            logger.info(f"Done with octave filtering")
+            if verbose:
+                logger.info(f"Done with octave filtering")
 
             if i_slope < n_slopes:
                 rirs[:, :, i_slope, :] = np.einsum(
