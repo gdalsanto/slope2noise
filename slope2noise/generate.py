@@ -124,8 +124,9 @@ def shaped_wgn(
                     'ntb, ntb -> ntb', filtered_gaussian_noise * envelopes,
                     a_vals_envelope[..., i_slope, :])
             else:
-                rirs[:, :,
-                     i_slope, :] = filtered_gaussian_noise * n_vals_envelope
+                rirs[:, :, i_slope, :] = np.einsum('ntb, nb -> ntb',
+                                                   filtered_gaussian_noise,
+                                                   n_vals_envelope)
         else:
             # shape the random sequence and apply the envelope
             if i_slope < n_slopes:

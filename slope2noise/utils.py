@@ -386,10 +386,6 @@ def octave_filtering(
             if input_signal.ndim > 1:
                 cur_filters = np.tile(subband_filters.coefficients[b_idx, ...],
                                       (input_signal.shape[0], 1))
-                # cur_filters = np.broadcast_to(
-                #     subband_filters.coefficients[b_idx, ...],
-                #     input_signal.shape[:-1] +
-                #     subband_filters.coefficients.shape[1:])
             else:
                 cur_filters = subband_filters.coefficients[b_idx, ...]
 
