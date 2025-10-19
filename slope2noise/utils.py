@@ -122,6 +122,7 @@ def schroeder_backward_int(rir: NDArray,
     if normalize:
         # Normalize to 1
         norm_vals = np.max(out, axis=time_axis, keepdims=True)  # per channel
+        # norm_vals = np.max(out, keepdims=True)  # global max for all channels
         out = out / norm_vals if not np.isnan(norm_vals).any() else out
         return out
     else:

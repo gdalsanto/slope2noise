@@ -541,11 +541,7 @@ class RoomGeometry:
 
         if scatter_plot:
             to_plot = db(edc_error, is_squared=True, min_value=0)
-            im = cur_ax.scatter(x_rec,
-                                y_rec,
-                                c=to_plot,
-                                vmin=0,
-                                vmax=max(3.0, to_plot.max()))
+            im = cur_ax.scatter(x_rec, y_rec, c=to_plot, vmin=0, vmax=3.5)
             # Set the limits for all axes
             cur_ax.set_xlim(0, x_lim + 0.5)
             cur_ax.set_ylim(0, y_lim + 0.5)
