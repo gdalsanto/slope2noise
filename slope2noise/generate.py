@@ -55,7 +55,7 @@ def shaped_wgn(
         use_amp_preserving_filterbank (Optional, bool): whether to use Pyfar's perfect reconstruction 
                                                         octave filterbank, or energy preserving filterbank
     Returns:
-        NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_bands, and summed RIRs of size n_rir x ir_len
+        NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_slopes x n_bands, and summed RIRs of size n_rir x ir_len
     """
     # assert input dimensions
     assert (
@@ -140,4 +140,4 @@ def shaped_wgn(
                                              n_vals_envelope)
         logger.info(f"Done with noise shaping for slope {i_slope+1}")
 
-    return rirs.sum(axis=-2), rirs.sum(axis=-1).sum(axis=-1)
+    return rirs, rirs.sum(axis=-1).sum(axis=-1)
