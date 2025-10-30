@@ -386,10 +386,6 @@ def octave_filtering(
             if input_signal.ndim > 1:
                 cur_filters = np.tile(subband_filters.coefficients[b_idx, ...],
                                       (input_signal.shape[0], 1))
-                # cur_filters = np.broadcast_to(
-                #     subband_filters.coefficients[b_idx, ...],
-                #     input_signal.shape[:-1] +
-                #     subband_filters.coefficients.shape[1:])
             else:
                 cur_filters = subband_filters.coefficients[b_idx, ...]
 
@@ -397,9 +393,9 @@ def octave_filtering(
                                                 cur_filters,
                                                 axes=-1,
                                                 mode='same')
-            if compensate_filter_energy:
-                out_bands[..., b_idx] /= np.sqrt(
-                    np.sum(impulse_response[b_idx, ...]**2))
+            # if compensate_filter_energy:
+            #     out_bands[..., b_idx] /= np.sqrt(
+            #         np.sum(impulse_response[b_idx, ...]**2))
         else:
             impulse_response[b_idx, :] = sosfilt(
                 subband_filters.coefficients[b_idx, ...],
@@ -412,9 +408,12 @@ def octave_filtering(
                                                 input_signal,
                                                 axis=-1)
 
-                if compensate_filter_energy:
-                    out_bands[..., b_idx] /= np.sqrt(
-                        np.sum((impulse_response[b_idx, :])**2))
+                # if compensate_filter_energy:
+                #     out_bands[..., b_idx] /= np.sqrt(
+                #         np.sum((impulse_response[b_idx, :])**2))
+
+        if compensate_filter_energy:
+            out_bands[..., b_idx] /= np.sqrt(np.sum((impulse_response)**2))
 
     if get_filter_ir:
         return out_bands, impulse_response
