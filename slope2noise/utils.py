@@ -329,6 +329,7 @@ def octave_filtering(
         get_filter_ir: bool = False,
         compensate_filter_energy: bool = False,
         num_fractions: int = 1,
+        filter_length: int = 4096,
         ir_len: Optional[int] = None,
         use_amp_preserving_filterbank: Optional[bool] = False) -> NDArray:
     """
@@ -369,6 +370,7 @@ def octave_filtering(
             num_fractions=num_fractions,
             frequency_range=(f_bands[0], f_bands[-1]),
             sampling_rate=fs,
+            n_samples=int(filter_length),
         )
         impulse_response = subband_filters.coefficients
     else:
@@ -393,9 +395,9 @@ def octave_filtering(
                                                 cur_filters,
                                                 axes=-1,
                                                 mode='same')
-            # if compensate_filter_energy:
-            #     out_bands[..., b_idx] /= np.sqrt(
-            #         np.sum(impulse_response[b_idx, ...]**2))
+            if compensate_filter_energy:
+                out_bands[..., b_idx] /= np.sqrt(
+                    np.sum(impulse_response[b_idx, ...]**2))
         else:
             impulse_response[b_idx, :] = sosfilt(
                 subband_filters.coefficients[b_idx, ...],
@@ -408,12 +410,9 @@ def octave_filtering(
                                                 input_signal,
                                                 axis=-1)
 
-                # if compensate_filter_energy:
-                #     out_bands[..., b_idx] /= np.sqrt(
-                #         np.sum((impulse_response[b_idx, :])**2))
-
-        if compensate_filter_energy:
-            out_bands[..., b_idx] /= np.sqrt(np.sum((impulse_response)**2))
+                if compensate_filter_energy:
+                    out_bands[..., b_idx] /= np.sqrt(
+                        np.sum((impulse_response[b_idx, :])**2))
 
     if get_filter_ir:
         return out_bands, impulse_response

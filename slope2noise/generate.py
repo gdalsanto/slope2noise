@@ -39,6 +39,8 @@ def shaped_wgn(
     num_fractions: int = 1,
     n_vals: Optional[NDArray] = None,
     f_bands: Optional[ArrayLike] = None,
+    compensate_filter_energy: bool = True,
+    filter_length: int = 4096,
     use_amp_preserving_filterbank: Optional[bool] = True,
     verbose: bool = False,
 ) -> Tuple[NDArray, NDArray]:
@@ -116,7 +118,8 @@ def shaped_wgn(
                 f_bands,
                 num_fractions=num_fractions,
                 ir_len=ir_len,
-                compensate_filter_energy=True,
+                filter_length=filter_length,
+                compensate_filter_energy=compensate_filter_energy,
                 use_amp_preserving_filterbank=use_amp_preserving_filterbank,
             )
             if verbose:
