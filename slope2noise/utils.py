@@ -330,6 +330,7 @@ def octave_filtering(
         get_filter_ir: bool = False,
         compensate_filter_energy: bool = False,
         num_fractions: int = 1,
+        filter_length: int = 4096,
         ir_len: Optional[int] = None,
         use_amp_preserving_filterbank: Optional[bool] = False) -> NDArray:
     """
@@ -370,6 +371,7 @@ def octave_filtering(
             num_fractions=num_fractions,
             frequency_range=(f_bands[0], f_bands[-1]),
             sampling_rate=fs,
+            n_samples=int(filter_length),
         )
         impulse_response = subband_filters.coefficients
     else:

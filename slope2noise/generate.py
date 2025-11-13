@@ -39,7 +39,10 @@ def shaped_wgn(
     num_fractions: int = 1,
     n_vals: Optional[NDArray] = None,
     f_bands: Optional[ArrayLike] = None,
+    compensate_filter_energy: bool = True,
+    filter_length: int = 4096,
     use_amp_preserving_filterbank: Optional[bool] = True,
+    verbose: bool = False,
 ) -> Tuple[NDArray, NDArray]:
     """
     Synthesise RIRs with white noise shaping
@@ -64,6 +67,14 @@ def shaped_wgn(
     assert (len(a_vals.shape) == len(t_vals.shape) <=
             3), "Incorrect dimension for a_vals. Must be the same as t_vals."
 
+    if n_vals is not None:
+        assert len(n_vals.shape) == len(
+            t_vals.shape
+        ) - 1 <= 2, 'Incorrect dimension for n_vals. Must be the same be either  [n_rir x n_bands] or [n_rir].'
+        n_vals_envelope = -np.sqrt(n_vals / ir_len)
+        if len(n_vals.shape) == 1:
+            n_vals_envelope = np.expand_dims(n_vals_envelope, axis=-1)
+
     # expand dimensions if necessary
     t_vals, a_vals, n_bands = slope_param_shape_check(t_vals, a_vals, f_bands)
 
@@ -72,19 +83,12 @@ def shaped_wgn(
 
     # initialize output arrays
     gaussian_noise = np.zeros((n_rirs, ir_len, n_slopes + 1, n_bands))
-    shaped_noise = np.zeros_like(gaussian_noise)
     rirs = np.zeros_like(gaussian_noise)
 
     # envelope is in linear scale, not quadratic, therefore decay rates halve,
     # and T values double
     t_vals_envelope = 2 * np.array(t_vals)
     a_vals_envelope = np.expand_dims(np.sqrt(a_vals), 1)
-
-    if n_vals is not None:
-        assert len(n_vals.shape) == len(
-            t_vals.shape
-        ) - 1 <= 2, 'Incorrect dimension for n_vals. Must be the same be either  [n_rir x n_bands] or [n_rir].'
-        n_vals_envelope = -np.sqrt(n_vals / ir_len)
 
     loop_range = n_slopes if n_vals is None else n_slopes + 1
 
@@ -99,14 +103,14 @@ def shaped_wgn(
                 normalize_envelope=True,
                 add_noise=False,
             )
-
-        logger.info(f"Done with kernel generation for slope {i_slope+1}")
+        if verbose:
+            logger.info(f"Done with kernel generation for slope {i_slope+1}")
         # generate random sequence of Gaussian noise, and filter it
         random_sequence = np.random.randn(n_rirs, ir_len, 1)
 
         if n_bands > 1:
-
-            logger.info(f"Filtering noise into subbands slope {i_slope+1}")
+            if verbose:
+                logger.info(f"Filtering noise into subbands slope {i_slope+1}")
             # this is of shape n_rirs x ir_len x n_bands
             filtered_gaussian_noise = octave_filtering(
                 random_sequence[..., 0],
@@ -114,10 +118,12 @@ def shaped_wgn(
                 f_bands,
                 num_fractions=num_fractions,
                 ir_len=ir_len,
-                compensate_filter_energy=True,
+                filter_length=filter_length,
+                compensate_filter_energy=compensate_filter_energy,
                 use_amp_preserving_filterbank=use_amp_preserving_filterbank,
             )
-            logger.info(f"Done with octave filtering")
+            if verbose:
+                logger.info(f"Done with octave filtering")
 
             if i_slope < n_slopes:
                 rirs[:, :, i_slope, :] = np.einsum(
@@ -138,6 +144,7 @@ def shaped_wgn(
                 rirs[...,
                      i_slope, :] = np.einsum('ntb, nb -> ntb', random_sequence,
                                              n_vals_envelope)
-        logger.info(f"Done with noise shaping for slope {i_slope+1}")
+        if verbose:
+            logger.info(f"Done with noise shaping for slope {i_slope+1}")
 
     return rirs, rirs.sum(axis=-1).sum(axis=-1)
