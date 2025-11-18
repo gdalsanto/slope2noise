@@ -1,10 +1,11 @@
-n_rirs: 100
-batch_size: 100
+n_rirs: 20
+batch_size: 10
 n_slopes: 2
 ir_len: 96000
 synthesis_type: "wgn"
-t_vals: [[[0.5], [1.7]]]
-output_dir: "../../resources/synthetic_dataset/two_coupled_rooms/"
+f_bands: [63, 125, 250, 500, 1000, 2000, 4000, 8000]
+t_vals: [[[0.5, 0.75, 1, 1, 0.75, 0.5, 0.5], [1.5, 1.75, 2, 2.5, 2, 1.5, 1]]]
+output_dir: "data/synthetic_room/"
 room_geom_config:
   num_rooms: 2
   room_dims: [[4,8,2], [6,2,2]]
@@ -13,4 +14,4 @@ room_geom_config:
   source_pos: [1, 0.5, 1.5]
 amp_gen_config:
   generate_amplitude_based_on_geometry: True
-  amp_dist_filepath: "../../resources/Georg_3room_FDTD/amplitude_distribution.pkl"
+  amp_dist_filepath: "data/synthetic_rirs_basic/amplitude_distribution_full_band.pkl"
