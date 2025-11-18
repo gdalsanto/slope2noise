@@ -9,41 +9,60 @@ import soundfile as sf
 from loguru import logger
 
 
-def save_audio(filepath, x, fs=48000):
+def save_audio(filepath: str, x: NDArray, fs: int = 48000):
+    """Save audio to file using soundfile"""
     sf.write(filepath, x, fs)
 
 
-def discard_trailing_zeros(rir):
+def discard_trailing_zeros(rir: NDArray, axis: int = -1) -> NDArray:
+    """Discard trailing zeros from the RIR."""
     # find first non-zero element from back
-    last_above_thres = rir.shape[-1] - np.argmax(
-        (np.flip(rir, axis=-1) != 0)).squeeze().astype(int)
+    last_above_thres = rir.shape[axis] - np.argmax(
+        (np.flip(rir, axis=axis) != 0)).squeeze().astype(int)
     # discard from that sample onwards
     out = rir[..., :last_above_thres]
     return out
 
 
-def discard_last_n_percent(edc, n_percent: float):
-    # Discard last n%
+def discard_last_n_percent(edc: NDArray, n_percent: float) -> NDArray:
+    """Discard last n% from the EDC."""
     last_id = (np.round((1 - n_percent / 100) * edc.shape[-1])).astype(int)
     out = edc[..., 0:last_id]
-
     return out
 
 
-def slope_param_shape_check(t_vals: NDArray, a_vals: NDArray,
-                            f_bands: Optional[ArrayLike]):
+def slope_param_shape_check(t_vals: NDArray,
+                            a_vals: NDArray,
+                            n_vals: Optional[ArrayLike] = None,
+                            f_bands: Optional[ArrayLike] = None) -> tuple[NDArray, NDArray, int]:
     """
     Check and adjust the shape of t_vals and a_vals for slope parameter calculation.
 
     Parameters:
     t_vals (NDArray): Decay time values array.
     a_vals (NDArray): Amplitude values array.
+    n_vals (Optional, ArrayLike): Noise values array, if applicable.    
     f_bands (Optional, ArrayLike): Frequency bands array, if applicable.
 
     Returns:
     tuple: Adjusted t_vals, a_vals, and the number of bands.
     """
 
+    # basic asserts for t_vals and a_vals shapes (allow 1..3 dims)
+    assert (
+        len(t_vals.shape) >= 1 and len(t_vals.shape) <= 3
+    ), "Incorrect dimension for t_vals. Must be either [n_rir x n_slopes x n_bands] or [n_rir x n_slopes] or [n_rir]."
+    assert (len(a_vals.shape) == len(t_vals.shape) <= 3), "Incorrect dimension for a_vals. Must be the same as t_vals."
+
+    # handle optional n_vals: check dims and expand last axis if needed
+    if n_vals is not None:
+        assert len(n_vals.shape) == len(t_vals.shape) - 1 <= 2, (
+            "Incorrect dimension for n_vals. Must be either [n_rir x n_bands] or [n_rir]."
+        )
+        if len(n_vals.shape) == 1:
+            n_vals = np.expand_dims(n_vals, axis=-1)
+
+    # expand t_vals/a_vals to 3 dims (n_rir x n_slopes x n_bands) when needed
     if len(t_vals.shape) < 3:
         t_vals = np.reshape(
             t_vals,
@@ -60,7 +79,7 @@ def slope_param_shape_check(t_vals: NDArray, a_vals: NDArray,
     else:
         n_bands = 1  # broadband
 
-    return t_vals, a_vals, n_bands
+    return t_vals, a_vals, n_vals, n_bands
 
 
 def db(x: ArrayLike,

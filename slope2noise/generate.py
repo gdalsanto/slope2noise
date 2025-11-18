@@ -60,26 +60,11 @@ def shaped_wgn(
     Returns:
         NDArray, NDArray: array of RIRs of of size n_rir x ir_len x n_slopes x n_bands, and summed RIRs of size n_rir x ir_len
     """
-    # assert input dimensions
-    assert (
-        len(t_vals.shape) >= 1 and len(t_vals.shape) <= 3
-    ), "Incorrect dimension for t_vals. Must be either [n_rir x n_slopes x n_bands] or [n_rir x n_slopes] or [n_rir]."
-    assert (len(a_vals.shape) == len(t_vals.shape) <=
-            3), "Incorrect dimension for a_vals. Must be the same as t_vals."
-
-    if n_vals is not None:
-        assert len(n_vals.shape) == len(
-            t_vals.shape
-        ) - 1 <= 2, 'Incorrect dimension for n_vals. Must be the same be either  [n_rir x n_bands] or [n_rir].'
-        n_vals_envelope = -np.sqrt(n_vals / ir_len)
-        if len(n_vals.shape) == 1:
-            n_vals_envelope = np.expand_dims(n_vals_envelope, axis=-1)
-
-    # expand dimensions if necessary
-    t_vals, a_vals, n_bands = slope_param_shape_check(t_vals, a_vals, f_bands)
+    # assert correctness of input dimensions and expand dimensions if necessary
+    t_vals, a_vals, n_vals, n_bands = slope_param_shape_check(t_vals, a_vals, n_vals, f_bands)
 
     n_rirs, n_slopes = t_vals.shape[:2]
-    time = np.linspace(0, (ir_len - 1) / fs, ir_len)  # time arrray
+    time = np.linspace(0, (ir_len - 1) / fs, ir_len)  # time array
 
     # initialize output arrays
     gaussian_noise = np.zeros((n_rirs, ir_len, n_slopes + 1, n_bands))
