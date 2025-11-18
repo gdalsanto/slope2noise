@@ -74,11 +74,12 @@ def shaped_wgn(
     # and T values double
     t_vals_envelope = 2 * np.array(t_vals)
     a_vals_envelope = np.expand_dims(np.sqrt(a_vals), 1)
-
+    if n_vals is not None:
+        n_vals_envelope = -np.sqrt(n_vals / ir_len)
+        
     loop_range = n_slopes if n_vals is None else n_slopes + 1
-
+    # NOTE: last slope index is interpreted as noise term
     for i_slope in range(loop_range):
-        # NOTE: last slope index is interpreted as noise term
         # generate decay envelope
         if i_slope < n_slopes:
             envelopes = decay_kernel(
