@@ -1,3 +1,7 @@
+"""
+You can run this code with the config file 'config/rir_synthesis_basic.yml'
+to synthesize RIRs as shaped white Gaussian noise given common slopes parameters.
+"""
 import argparse
 import yaml
 import os
