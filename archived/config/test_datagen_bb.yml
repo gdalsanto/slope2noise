@@ -1,4 +1,0 @@
-n_rirs: 10
-batch_size: 5
-ir_len: 96000
-output_dir: "data/test_datagen_bb"

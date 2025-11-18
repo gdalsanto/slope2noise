@@ -1,5 +1,0 @@
-n_rirs: 100
-batch_size: 10
-ir_len: 96000
-output_dir: "data/broadband_wgn"
-synthesis_type: "wgn"
