@@ -38,14 +38,14 @@ def slope_param_shape_check(t_vals: NDArray,
     """
     Check and adjust the shape of t_vals and a_vals for slope parameter calculation.
 
-    Parameters:
-    t_vals (NDArray): Decay time values array.
-    a_vals (NDArray): Amplitude values array.
-    n_vals (Optional, ArrayLike): Noise values array, if applicable.    
-    f_bands (Optional, ArrayLike): Frequency bands array, if applicable.
+    Args:
+        t_vals (NDArray): Decay time values array.
+        a_vals (NDArray): Amplitude values array.
+        n_vals (Optional, ArrayLike): Noise values array, if applicable.    
+        f_bands (Optional, ArrayLike): Frequency bands array, if applicable.
 
     Returns:
-    tuple: Adjusted t_vals, a_vals, and the number of bands.
+        tuple: Adjusted t_vals, a_vals, and the number of bands.
     """
 
     # basic asserts for t_vals and a_vals shapes (allow 1..3 dims)
@@ -85,7 +85,8 @@ def slope_param_shape_check(t_vals: NDArray,
 def db(x: ArrayLike,
        is_squared: bool = False,
        min_value: float = -200) -> ArrayLike:
-    """Convert values to decibels.
+    """
+    Convert values to decibels.
 
     Args:
         x (ArrayLike):
@@ -110,6 +111,7 @@ def ms_to_samps(ms: Union[float, ArrayLike],
                 fs: float) -> Union[int, ArrayLike]:
     """
     Convert ms to samples
+
     Args:
         ms (float or ArrayLike): time in ms
         fs (float): sampling rate
@@ -126,7 +128,26 @@ def ms_to_samps(ms: Union[float, ArrayLike],
 def schroeder_backward_int(rir: NDArray,
                            time_axis: int = -1,
                            normalize: bool = False,
-                           discard_last_zeros: bool = False):
+                           discard_last_zeros: bool = False) -> NDArray:
+
+    """
+    Compute the Schroeder backward integration (energy decay curve) of an RIR.
+
+    This computes the cumulative sum of the squared RIR samples in reverse time
+    (Schroeder integration). Optionally trailing zeros can be discarded before
+    integration and the resulting envelope can be normalised to 1.
+
+    Args:
+        rir (NDArray): Input impulse response(s). Time axis is specified by
+            `time_axis`.
+        time_axis (int): Axis corresponding to time samples. Default is -1.
+        normalize (bool): If True, normalize the resulting envelope to 1.
+        discard_last_zeros (bool): If True, trailing zeros are removed before
+            integration (useful for padded RIRs, for example).
+
+    Returns:
+        NDArray: Energy decay curve in linear scale.
+    """
 
     if discard_last_zeros:
         out = discard_trailing_zeros(rir)
@@ -139,7 +160,7 @@ def schroeder_backward_int(rir: NDArray,
     out = np.flip(out, axis=time_axis)
 
     if normalize:
-        # Normalize to 1
+        # normalize to 1
         norm_vals = np.max(out, axis=time_axis, keepdims=True)  # per channel
         # norm_vals = np.max(out, keepdims=True)  # global max for all channels
         out = out / norm_vals if not np.isnan(norm_vals).any() else out
@@ -148,15 +169,14 @@ def schroeder_backward_int(rir: NDArray,
         return out
 
 
-def decay_kernel(
-    envelope_t: Union[float, ArrayLike],
-    time: ArrayLike,
-    fs: float,
-    normalize_envelope: bool = False,
-    add_noise: bool = False,
-) -> NDArray:
+def decay_kernel(envelope_t: Union[float, ArrayLike],
+                 time: ArrayLike,
+                 fs: float,
+                 normalize_envelope: bool = False,
+                 add_noise: bool = False) -> NDArray:
     """
-    Decay kernel for the exponential envelope. Accepts only one frequncy band at a time.
+    Decay kernel for the exponential envelope. Accepts only one frequency band at a time.
+
     Args:
         envelope_t: the T60 values (doubled)
         time (ArrayLike): time vector
@@ -176,7 +196,7 @@ def decay_kernel(
         exponential = np.einsum("ntb, nb -> ntb", exponential,
                                 np.sqrt((1 - np.exp(-2 * tau_vals / fs))))
 
-    # construct the decay kernel
+    # add noise term if needed
     if add_noise:
         # calculate noise
         ir_len = len(time)
@@ -187,47 +207,6 @@ def decay_kernel(
         return np.concatenate((exponential, noise), axis=-1)
     else:
         return exponential
-
-
-def calculate_energy_envelope(sig: NDArray,
-                              fs: float,
-                              smooth_time_ms: float,
-                              time_axis: int = -1) -> ArrayLike:
-    """
-    Calculate the energy envelope (broadband EDC) of a RIR
-    Args:
-        sig (ArrayLike): ND RIR signal
-        fs (float): sampling rate
-        smooth_time_ms (float): smoothing window length in ms,
-                                longer window leads to more smoothing
-        time_axis (int): axis along which time samples are specified
-    """
-    staps = ms_to_samps(smooth_time_ms / 2, fs)
-    odd_win_len = 2 * staps - 1
-    # normalised smoothing window
-    bs = np.hanning(odd_win_len) / np.sum(np.hanning(odd_win_len))
-
-    # Reshape bs to broadcast correctly along the time axis
-    bs_shape = [1] * sig.ndim
-    bs_shape[time_axis] = bs.shape[0]
-    bs_broadcasted = bs.reshape(bs_shape)
-
-    # Pad along the time axis, before and after the signal
-    pad_width = [(0, 0)] * sig.ndim
-    pad_width[time_axis] = (staps, staps)
-    padded_signal = np.pad(np.power(sig, 2), pad_width, mode='constant')
-
-    # Smooth using convolution along the time axis
-    smoothed_signal = fftconvolve(padded_signal,
-                                  bs_broadcasted,
-                                  mode='valid',
-                                  axes=time_axis)
-
-    # Take square root to get envelope
-    env = np.sqrt(smoothed_signal)
-    env = env[..., odd_win_len:]
-
-    return env
 
 
 def calculate_amplitudes_least_squares(t_vals: NDArray,
