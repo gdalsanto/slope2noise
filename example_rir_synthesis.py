@@ -13,7 +13,7 @@ from slope2noise.dataclass import CommonSlopesRIRSimple
 
 def main(config_dict: Config):
 
-    # detect whether the decay time values are broadband of frequency dependent
+    # detect whether the decay time values are broadband or frequency dependent
     if config_dict.f_bands is None:
         n_bands = 1
     else:
