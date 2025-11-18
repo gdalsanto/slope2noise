@@ -74,7 +74,7 @@ def shaped_wgn(
         n_vals_envelope = -np.sqrt(n_vals / ir_len)
         if len(n_vals.shape) == 1:
             n_vals_envelope = np.expand_dims(n_vals_envelope, axis=-1)
-            
+
     # expand dimensions if necessary
     t_vals, a_vals, n_bands = slope_param_shape_check(t_vals, a_vals, f_bands)
 
@@ -130,10 +130,9 @@ def shaped_wgn(
                     'ntb, ntb -> ntb', filtered_gaussian_noise * envelopes,
                     a_vals_envelope[..., i_slope, :])
             else:
-                rirs[:, :,
-                     i_slope, :] = np.einsum(
-                         'ntb, nb -> ntb', filtered_gaussian_noise,
-                         n_vals_envelope)
+                rirs[:, :, i_slope, :] = np.einsum('ntb, nb -> ntb',
+                                                   filtered_gaussian_noise,
+                                                   n_vals_envelope)
         else:
             # shape the random sequence and apply the envelope
             if i_slope < n_slopes:
