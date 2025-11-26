@@ -4,14 +4,12 @@ n_slopes: 2
 ir_len: 96000
 synthesis_type: "wgn"
 f_bands: [63, 125, 250, 500, 1000, 2000, 4000, 8000]
-t_vals: [[[0.5, 0.75, 1, 1, 0.75, 0.5, 0.5], [1.5, 1.75, 2, 2.5, 2, 1.5, 1]]]
-output_dir: "data/synthetic_room/"
+t_vals: [[[0.5, 0.75, 1, 1, 0.75, 0.5, 0.5, 0.25], [1.5, 1.75, 2, 2.5, 2, 1.5, 1, 0.8]]]
+a_vals: [[[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]]]
+output_dir: "data/synthetic_rirs_coupled_room/"
 room_geom_config:
   num_rooms: 2
   room_dims: [[4,8,2], [6,2,2]]
   start_coordinates: [[0,0,0], [4,2,0]]
   aperture_coords: [[[4,2], [4,4]]]
   source_pos: [1, 0.5, 1.5]
-amp_gen_config:
-  generate_amplitude_based_on_geometry: True
-  amp_dist_filepath: "data/synthetic_rirs_basic/amplitude_distribution_full_band.pkl"

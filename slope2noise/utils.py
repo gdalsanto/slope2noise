@@ -31,10 +31,11 @@ def discard_last_n_percent(edc: NDArray, n_percent: float) -> NDArray:
     return out
 
 
-def slope_param_shape_check(t_vals: NDArray,
-                            a_vals: NDArray,
-                            n_vals: Optional[ArrayLike] = None,
-                            f_bands: Optional[ArrayLike] = None) -> tuple[NDArray, NDArray, int]:
+def slope_param_shape_check(
+        t_vals: NDArray,
+        a_vals: NDArray,
+        n_vals: Optional[ArrayLike] = None,
+        f_bands: Optional[ArrayLike] = None) -> tuple[NDArray, NDArray, int]:
     """
     Check and adjust the shape of t_vals and a_vals for slope parameter calculation.
 
@@ -52,7 +53,8 @@ def slope_param_shape_check(t_vals: NDArray,
     assert (
         len(t_vals.shape) >= 1 and len(t_vals.shape) <= 3
     ), "Incorrect dimension for t_vals. Must be either [n_rir x n_slopes x n_bands] or [n_rir x n_slopes] or [n_rir]."
-    assert (len(a_vals.shape) == len(t_vals.shape) <= 3), "Incorrect dimension for a_vals. Must be the same as t_vals."
+    assert (len(a_vals.shape) == len(t_vals.shape) <=
+            3), "Incorrect dimension for a_vals. Must be the same as t_vals."
 
     # handle optional n_vals: check dims and expand last axis if needed
     if n_vals is not None:
@@ -129,7 +131,6 @@ def schroeder_backward_int(rir: NDArray,
                            time_axis: int = -1,
                            normalize: bool = False,
                            discard_last_zeros: bool = False) -> NDArray:
-
     """
     Compute the Schroeder backward integration (energy decay curve) of an RIR.
 

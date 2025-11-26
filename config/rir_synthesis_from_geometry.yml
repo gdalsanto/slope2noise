@@ -9,7 +9,6 @@ use_multiple_sources: false
 f_bands: [125, 250, 500, 1000, 2000, 4000]
 num_fractions: 1
 t_vals: [[[0.3, 0.25, 0.2, 0.18, 0.15, 0.12], [1.2, 1.0, 0.8, 0.7, 0.6, 0.5]]]
-a_vals: [[[1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]]]
 n_vals: [[0.001, 0.001, 0.001, 0.001, 0.001, 0.001]]
 room_geom_config:
   num_rooms: 2
@@ -19,3 +18,4 @@ room_geom_config:
   source_pos: [1, 0.5, 1.5]
 amp_gen_config:
   generate_amplitude_based_on_geometry: True
+  amp_dist_filepath: "data/synthetic_rirs_from_geometry/amplitude_distribution_full_band.pkl"
