@@ -17,6 +17,8 @@ def main(config_dict: Config):
     batch_size = config_dict.batch_size
     denom = batch_size**2 if config_dict.use_multiple_sources else batch_size
     num_batches = n_rirs // denom
+    logger.info(
+        f"Number of batches is {num_batches}. Batch size is {batch_size}")
     n_slopes = config_dict.n_slopes
     n_bands = len(
         config_dict.f_bands) if config_dict.f_bands is not None else 1
@@ -65,7 +67,7 @@ def main(config_dict: Config):
 
     for k in range(num_rirs_to_plot):
         fig = plt.figure(figsize=(8,
-                                  2 * n_bands))  # height scales with n_bands
+                                  1.5 * n_bands))  # height scales with n_bands
 
         for i in range(n_bands):
             ax = fig.add_subplot(n_bands, 1,
@@ -87,7 +89,7 @@ def main(config_dict: Config):
                     'gd',
                     label='a_vals_est')
             ax.set_xlabel(' Time(s)')
-            ax.set_ylabel(f'dB, band = {i+1}')
+            ax.set_ylabel(f'band = {i+1}')
             if i == 0:
                 ax.set_title(
                     f'RIR at receiver pos {receiver_locs[rir_idx[k], 0]:.2f}, {receiver_locs[rir_idx[k], 1]:.2f}, {receiver_locs[rir_idx[k], 2]:.2f}m '
@@ -98,33 +100,32 @@ def main(config_dict: Config):
         plt.tight_layout()
         plt.show()
 
-        # plot amplitudes as a function of receiver and geometry
-        geom_config = config_dict.room_geom_config
-        room = RoomGeometry(config_dict.fs, geom_config.num_rooms,
-                            geom_config.room_dims,
-                            geom_config.start_coordinates,
-                            geom_config.aperture_coords)
+    # plot amplitudes as a function of receiver and geometry
+    geom_config = config_dict.room_geom_config
+    room = RoomGeometry(config_dict.fs, geom_config.num_rooms,
+                        geom_config.room_dims, geom_config.start_coordinates,
+                        geom_config.aperture_coords)
 
-        for i in range(n_bands):
-            if config_dict.use_multiple_sources:
-                for n in range(source_locs.shape[0]):
-                    room.plot_amps_at_receiver_points(
-                        receiver_locs,
-                        source_locs[n],
-                        a_vals[n, ..., i].T,
-                        scatter_plot=False,
-                        save_path=Path(
-                            f'figures/rir_synthesis_coupled_rooms_amps_source={np.round(source_locs[n], 2)}_freq={config_dict.f_bands[i]:.0f}Hz.png'
-                        ).resolve())
-            else:
+    for i in range(n_bands):
+        if config_dict.use_multiple_sources:
+            for n in range(source_locs.shape[0]):
                 room.plot_amps_at_receiver_points(
                     receiver_locs,
-                    geom_config.source_pos,
-                    a_vals[..., i].T,
-                    scatter_plot=False,
+                    source_locs[n],
+                    a_vals[n, ..., i].T,
+                    scatter_plot=True,
                     save_path=Path(
-                        'figures/rir_synthesis_coupled_rooms_amps_freq={config_dict.f_bands[i]:.0f}Hz.png'
+                        f'figures/rir_synthesis_amps_source={np.round(source_locs[n], 2)}_freq={config_dict.f_bands[i]:.0f}Hz.png'
                     ).resolve())
+        else:
+            room.plot_amps_at_receiver_points(
+                receiver_locs,
+                geom_config.source_pos,
+                a_vals[0, ..., i].T,
+                scatter_plot=True,
+                save_path=Path(
+                    f'figures/rir_synthesis_amps_freq={config_dict.f_bands[i]:.0f}Hz.png'
+                ).resolve())
 
 
 if __name__ == "__main__":
