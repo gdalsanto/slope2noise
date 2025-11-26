@@ -624,8 +624,8 @@ class RoomGeometry:
         fig.tight_layout()
         if db_limits is None:
             db_limits = np.zeros((2, self.num_rooms))
-            db_limits[0, :] = np.min(db(amps, is_squared=True), axis=-1)
-            db_limits[1, :] = np.max(db(amps, is_squared=True), axis=-1)
+            db_limits[0, :] = np.min(db(amps, is_squared=True))
+            db_limits[1, :] = np.max(db(amps, is_squared=True))
 
         # Plot the X, Y, Z points
         for i in range(self.num_rooms):
