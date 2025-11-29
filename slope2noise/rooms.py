@@ -558,7 +558,7 @@ class RoomGeometry:
                 extent=(0, x_lim, 0, y_lim),
                 origin='lower',
                 vmin=0,
-                vmax=max(4.0, np.max(to_plot)),
+                vmax=max(3.0, np.max(to_plot)),
                 cmap=cmap,
             )
         cbar = fig.colorbar(im, ax=cur_ax, orientation='vertical')
