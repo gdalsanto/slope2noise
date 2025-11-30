@@ -553,12 +553,14 @@ class RoomGeometry:
             # set NaN values outside boundaries to white
             cmap = plt.cm.viridis.copy()
             cmap.set_bad('white')
-            im = cur_ax.imshow(to_plot,
-                               extent=(0, x_lim, 0, y_lim),
-                               origin='lower',
-                               vmin=0,
-                               vmax=max(4.0, np.max(to_plot)),
-                               cmap=cmap)
+            im = cur_ax.imshow(
+                to_plot,
+                extent=(0, x_lim, 0, y_lim),
+                origin='lower',
+                vmin=0,
+                vmax=max(3.0, np.max(to_plot)),
+                cmap=cmap,
+            )
         cbar = fig.colorbar(im, ax=cur_ax, orientation='vertical')
         cbar.set_label("dB", fontsize=8 * scale)
 
@@ -624,8 +626,8 @@ class RoomGeometry:
         fig.tight_layout()
         if db_limits is None:
             db_limits = np.zeros((2, self.num_rooms))
-            db_limits[0, :] = np.min(db(amps, is_squared=True), axis=-1)
-            db_limits[1, :] = np.max(db(amps, is_squared=True), axis=-1)
+            db_limits[0, :] = np.min(db(amps, is_squared=True))
+            db_limits[1, :] = np.max(db(amps, is_squared=True))
 
         # Plot the X, Y, Z points
         for i in range(self.num_rooms):
@@ -646,12 +648,14 @@ class RoomGeometry:
                 # set NaN values outside boundaries to white
                 cmap = plt.cm.viridis.copy()
                 cmap.set_bad('white')
-                im = cur_ax.imshow(db(amps_interp, is_squared=True),
-                                   extent=(0, x_lim, 0, y_lim),
-                                   origin='lower',
-                                   vmin=db_limits[0, i],
-                                   vmax=db_limits[1, i],
-                                   cmap=cmap)
+                im = cur_ax.imshow(
+                    db(amps_interp, is_squared=True),
+                    extent=(0, x_lim, 0, y_lim),
+                    origin='lower',
+                    vmin=db_limits[0, i],
+                    vmax=db_limits[1, i],
+                    cmap=cmap,
+                )
             cbar = fig.colorbar(im, ax=cur_ax, orientation='vertical')
             cbar.set_label("dB", fontsize=8 * scale)
 

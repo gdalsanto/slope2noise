@@ -55,8 +55,21 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
     if 'band_centre_hz' in gmm_dict:
         band_centre_hz = gmm_dict['band_centre_hz']
         if f_bands is not None:
-            assert np.allclose(band_centre_hz, np.array(f_bands)), \
-            "The specified centre frequencies should match those of the dataset"
+            assert len(f_bands) <= len(band_centre_hz)
+
+            # Compute pairwise distances
+            # shape: (len(f_bands), len(band_centre_hz))
+            dist = np.abs(
+                np.array(f_bands)[:, None] - np.array(band_centre_hz)[None, :])
+
+            # For each f_bands[i], find index of closest band centre
+            closest_indices = np.argmin(dist, axis=1)
+
+            # Check closeness
+            is_close = np.allclose(f_bands, band_centre_hz[closest_indices])
+
+            assert is_close, \
+                f"Some f_bands values do not match any band_centre_hz: {f_bands} vs {band_centre_hz}"
 
         if source_loc.ndim == 1:
             amplitudes_sampled = np.zeros((batch_size, n_slopes, len(f_bands)))
@@ -64,8 +77,9 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
             amplitudes_sampled = np.zeros(
                 (batch_size * source_loc.shape[0], n_slopes, len(f_bands)))
 
-        for k in range(len(band_centre_hz)):
-            cur_weighted_mean = weights[k] * mean_amps[k]
+        for k in range(len(f_bands)):
+            cur_weighted_mean = weights[closest_indices[k]] * mean_amps[
+                closest_indices[k]]
             if source_loc.ndim == 1:
                 amplitudes_sampled[
                     ..., k] = room.get_amplitude_based_on_position(
@@ -78,7 +92,7 @@ def generate_amplitudes_based_on_geometry(room: RoomGeometry,
                         source_loc,
                         amplitudes_sampled[-1],
                         scatter_plot=True,
-                        cur_freq_hz=band_centre_hz[k])
+                        cur_freq_hz=band_centre_hz[closest_indices[k]])
             else:
                 for j in range(source_loc.shape[0]):
                     amplitudes_sampled[
@@ -185,7 +199,7 @@ def gen_dataset(config_dict: Config):
         # t_vals of size batch_size x n_slopes X n_bands
         t_vals_expanded = np.repeat(np.array(t_vals)[np.newaxis, ...],
                                     num_src_rec_pts,
-                                    axis=0)
+                                    axis=0).squeeze()
         if config_dict.f_bands is None:
             t_vals_expanded = t_vals_expanded[..., 0]
 
@@ -200,15 +214,19 @@ def gen_dataset(config_dict: Config):
             f_bands=config_dict.f_bands,
             num_fractions=getattr(config_dict, 'num_fractions', 1),
             filter_length=getattr(config_dict, 'filter_length', 4096),
-            compensate_filter_energy=getattr(config_dict, 'compensate_filter_energy', True),
-            use_amp_preserving_filterbank=getattr(config_dict, 'use_amp_preserving_filterbank', True),
+            compensate_filter_energy=getattr(config_dict,
+                                             'compensate_filter_energy', True),
+            use_amp_preserving_filterbank=getattr(
+                config_dict, 'use_amp_preserving_filterbank', True),
             verbose=False,
         )
 
         if source_loc.ndim > 1:
             # reshape RIRs and amplitudes to (n_sources, n_receivers, ...)
-            rirs = rirs.reshape((source_loc.shape[0], receiver_locs.shape[0]) + rirs.shape[1:])
-            new_shape = (source_loc.shape[0], receiver_locs.shape[0]) + a_vals.shape[1:]
+            rirs = rirs.reshape((source_loc.shape[0], receiver_locs.shape[0]) +
+                                rirs.shape[1:])
+            new_shape = (source_loc.shape[0],
+                         receiver_locs.shape[0]) + a_vals.shape[1:]
             a_vals = a_vals.reshape(new_shape)
 
         # create instance of CommonSlopes dataclass
