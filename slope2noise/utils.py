@@ -161,8 +161,10 @@ def schroeder_backward_int(rir: NDArray,
     out = np.flip(out, axis=time_axis)
 
     if normalize:
-        # normalize to 1
-        norm_vals = np.max(out, axis=time_axis, keepdims=True)  # per channel
+        # normalize acc to CV SDN paper
+        norm_vals = np.sum(np.abs(np.power(rir, 2)),
+                           axis=time_axis,
+                           keepdims=True)  # per channel
         # norm_vals = np.max(out, keepdims=True)  # global max for all channels
         out = out / norm_vals if not np.isnan(norm_vals).any() else out
         return out
