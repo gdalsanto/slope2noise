@@ -104,7 +104,7 @@ def db(x: ArrayLike,
     factor = 10.0 if is_squared else 20.0
 
     x = np.abs(x)
-    y = factor * np.log10(x + np.finfo(np.float32).eps)
+    y = factor * np.log10(x + np.finfo(np.float64).eps)
 
     return y.clip(min=min_value)
 
@@ -130,7 +130,8 @@ def ms_to_samps(ms: Union[float, ArrayLike],
 def schroeder_backward_int(rir: NDArray,
                            time_axis: int = -1,
                            normalize: bool = False,
-                           discard_last_zeros: bool = False) -> NDArray:
+                           discard_last_zeros: bool = False,
+                           is_energy_signal: bool = False) -> NDArray:
     """
     Compute the Schroeder backward integration (energy decay curve) of an RIR.
 
@@ -145,6 +146,7 @@ def schroeder_backward_int(rir: NDArray,
         normalize (bool): If True, normalize the resulting envelope to 1.
         discard_last_zeros (bool): If True, trailing zeros are removed before
             integration (useful for padded RIRs, for example).
+        is_energy_signal (bool): whether input signal is in the pressure or energy domain
 
     Returns:
         NDArray: Energy decay curve in linear scale.
@@ -157,14 +159,20 @@ def schroeder_backward_int(rir: NDArray,
 
     # Backwards integral
     out = np.flip(out, axis=time_axis)
-    out = np.cumsum(out**2, axis=time_axis)
+    if is_energy_signal:
+        out = np.cumsum(out, axis=time_axis)
+    else:
+        out = np.cumsum(out**2, axis=time_axis)
     out = np.flip(out, axis=time_axis)
 
     if normalize:
-        # normalize acc to CV SDN paper
-        norm_vals = np.sum(np.abs(np.power(rir, 2)),
-                           axis=time_axis,
-                           keepdims=True)  # per channel
+        if is_energy_signal:
+            norm_vals = np.sum(np.abs(rir), axis=time_axis, keepdims=True)
+        else:
+            # normalize acc to CV SDN paper
+            norm_vals = np.sum(np.abs(np.power(rir, 2)),
+                               axis=time_axis,
+                               keepdims=True)  # per channel
         # norm_vals = np.max(out, keepdims=True)  # global max for all channels
         out = out / norm_vals if not np.isnan(norm_vals).any() else out
         return out
@@ -247,7 +255,7 @@ def calculate_energy_envelope(sig: NDArray,
                                   axes=time_axis)
 
     # Take square root to get envelope
-    env = np.sqrt(smoothed_signal)
+    env = np.sqrt(np.abs(smoothed_signal))
     env = env[..., odd_win_len:]
 
     return env
